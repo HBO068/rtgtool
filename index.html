@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SPC-RTG KPI Calculator</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+<style>
+body{margin:0;font-family:Segoe UI,Arial,sans-serif;background:radial-gradient(circle at top left,#dff3f8 0,#eef5f8 36%,#f8fbfd 100%);color:#0f172a}
+.page{max-width:1450px;margin:35px auto;padding:20px}
+.header{position:relative;overflow:hidden;background:linear-gradient(135deg,#002f4b 0%,#006b8f 55%,#00a3ad 100%);color:white;padding:34px;border-radius:24px;margin-bottom:24px;box-shadow:0 16px 34px rgba(0,59,92,.22)}
+.header:before{content:"";position:absolute;right:-70px;top:-80px;width:310px;height:310px;border-radius:50%;background:rgba(255,255,255,.12)}
+.header:after{content:"RTG • YARD • CRANES • FLOW • KPI";position:absolute;right:24px;bottom:18px;font-size:12px;letter-spacing:3px;color:rgba(255,255,255,.45);font-weight:800}
+.header h1{margin:0;font-size:34px;letter-spacing:.2px}
+.header p{margin:8px 0 0;color:#dff7ff}
+.header-tags{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.header-tag{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:7px 12px;font-size:12px;font-weight:800;color:#fff}
+.card{background:white;padding:24px;border-radius:20px;margin-bottom:24px;box-shadow:0 8px 24px rgba(0,0,0,.08)}
+.controls{display:grid;grid-template-columns:minmax(260px,1fr) 130px 135px 135px 150px 150px;gap:16px;align-items:end}
+.controls>div{min-width:0}
+label{font-weight:700;font-size:14px;display:block;margin-bottom:8px}
+input,select,button{width:100%;box-sizing:border-box;padding:12px;border-radius:12px;border:1px solid #d1d5db;font-size:14px}
+button{background:#ff6b00;color:white;border:none;font-weight:800;cursor:pointer}
+button:hover{background:#e85f00}
+.export-btn{background:#00a3ad}
+.export-btn:hover{background:#007f88}
+.status{margin-top:12px;font-weight:700;color:#475569}
+.ops-grid{display:flex;flex-direction:column;gap:26px;margin-bottom:24px}
+.ops-row{display:grid;gap:14px}
+.ops-row.moves-row{grid-template-columns:repeat(4,minmax(170px,1fr))}
+.ops-row.operation-row{grid-template-columns:repeat(3,minmax(0,1fr));width:calc(75% - 7px);margin:0 auto}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;align-items:stretch}
+.metric,.ops-metric{background:#f8fafc;border:1px solid #e5e7eb;border-radius:16px;padding:18px}
+.ops-metric{background:linear-gradient(135deg,#f8fafc,#eef7fb);border-left:5px solid #ff6b00}
+.metric-title,.ops-title{color:#64748b;font-weight:700;font-size:13px}
+.metric-value,.ops-value{font-size:30px;font-weight:900;color:#003b5c;margin-top:8px}
+.small-note{color:#64748b;font-size:13px;margin-top:6px}
+.details-btn{margin-top:14px;background:#003b5c}
+.details-btn:hover{background:#002b43}
+.hidden{display:none}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13px}
+th{background:#003b5c;color:white;padding:10px;text-align:left;white-space:nowrap}
+td{padding:9px;border-bottom:1px solid #e5e7eb;vertical-align:top}
+tr:hover{background:#f8fafc}
+.good{color:#15803d;font-weight:900}
+.bad{color:#b91c1c;font-weight:900}
+.warn{color:#ca8a04;font-weight:900}
+.section-title{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.table-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.details-tab{width:auto;padding:10px 14px;background:#0077a3}
+.details-tab:hover{background:#005f82}
+.copyright-footer{width:100%;text-align:center;padding:18px 10px;margin-top:30px;font-size:12px;font-weight:700;letter-spacing:1px;color:#64748b;border-top:1px solid #dbe4ea}
+.export-clean .details-btn,.export-clean .export-btn,.export-clean .controls-card{display:none!important}
+.export-clean{background:#fff!important}
+@media(max-width:1200px){.controls{grid-template-columns:1fr 1fr}.kpi-grid{grid-template-columns:repeat(2,1fr)}.ops-row.moves-row,.ops-row.operation-row{grid-template-columns:repeat(2,1fr);width:100%}}
+@media(max-width:700px){.controls,.kpi-grid,.ops-row.moves-row,.ops-row.operation-row{grid-template-columns:1fr;width:100%}}
+</style>
+</head>
+
+<body>
+<div class="page" id="reportPage">
+
+<div class="header">
+<h1>SPC-RTG KPI Calculator</h1>
+<p>Terminal operations, RTG yard flow, crane interaction, and planning KPI analytics</p>
+<div class="header-tags">
+<span class="header-tag">RTG OPS</span>
+<span class="header-tag">YARD FLOW</span>
+<span class="header-tag">DATA QUALITY</span>
+</div>
+</div>
+
+<div class="card controls-card">
+<div class="controls">
+<div>
+<label>Upload Work Instruction File</label>
+<input type="file" id="fileInput" accept=".txt,.csv,.xlsx,.xls">
+</div>
+
+<div>
+<label>Terminal</label>
+<select id="terminal">
+<option value="EGPSD">EGPSD</option>
+</select>
+</div>
+
+<div>
+<label>Alt.Ratio 20ft</label>
+<input type="number" id="ratio20" value="3" min="2">
+</div>
+
+<div>
+<label>Alt.Ratio 40ft</label>
+<input type="number" id="ratio40" value="3" min="2">
+</div>
+
+<div>
+<button onclick="processFile()">Calculate KPIs</button>
+</div>
+
+<div>
+<button class="export-btn" onclick="exportKPIReport()">Export PDF</button>
+</div>
+</div>
+<div id="status" class="status">Waiting for file upload...</div>
+</div>
+
+<div id="summaryCard" class="card hidden">
+<h2>Operational Summary</h2>
+
+<div class="ops-grid">
+<div class="ops-row moves-row">
+<div class="ops-metric"><div class="ops-title">Total Moves</div><div class="ops-value" id="totalMoves">0</div></div>
+<div class="ops-metric"><div class="ops-title">Total Load</div><div class="ops-value" id="totalLoad">0</div></div>
+<div class="ops-metric"><div class="ops-title">Total Discharge</div><div class="ops-value" id="totalDischarge">0</div></div>
+<div class="ops-metric"><div class="ops-title">Total Restows</div><div class="ops-value" id="totalRestows">0</div></div>
+</div>
+<div class="ops-row operation-row">
+<div class="ops-metric"><div class="ops-title">CMPH</div><div class="ops-value" id="cmph">0.00</div></div>
+<div class="ops-metric"><div class="ops-title">Planned Port Hours</div><div class="ops-value" id="plannedPortHours">0.0</div></div>
+<div class="ops-metric"><div class="ops-title">CI Planned</div><div class="ops-value" id="ciPlanned">0.00</div></div>
+</div>
+</div>
+
+<h2>KPI Summary</h2>
+<div class="kpi-grid">
+
+<div class="metric">
+<div class="metric-title">Avg Loading Points</div>
+<div class="metric-value" id="loadingKPI">0.00</div>
+<div class="small-note" id="loadingObs">Hour + QC observations: 0</div>
+<button class="details-btn" onclick="toggleDetails('loadingDetails')">Show / Hide Details</button>
+</div>
+
+<div class="metric">
+<div class="metric-title">Rehandles KPI</div>
+<div class="metric-value" id="rehandlesKPI">0.00%</div>
+<div class="small-note" id="rehandlesObs">Load from Yard: 0 | Rehandles: 0</div>
+<button class="details-btn" onclick="toggleDetails('rehandlesDetails')">Show / Hide Details</button>
+</div>
+
+<div class="metric">
+<div class="metric-title">RTG Moves Before Gantry</div>
+<div class="metric-value" id="rtgMovesBeforeGantryKPI">0.00</div>
+<div class="small-note" id="rtgObs">Move per Bay: 0.00 | Efficiency: 0.00%</div>
+<button class="details-btn" onclick="toggleDetails('rtgDetails')">Show / Hide Details</button>
+</div>
+
+<div class="metric">
+<div class="metric-title">Yard Clashes KPI</div>
+<div class="metric-value" id="yardClashesKPI">0.00%</div>
+<div class="small-note" id="yardClashesObs">Counted Moves: 0 | Counted Pairs: 0</div>
+<button class="details-btn" onclick="toggleDetails('yardClashesDetails')">Show / Hide Details</button>
+</div>
+
+<div class="metric">
+<div class="metric-title">Twin Yard Flow Adherence</div>
+<div class="metric-value" id="twinFlowKPI">0.00%</div>
+<div class="small-note" id="twinFlowObs">Total Twins: 0 | Not Respecting: 0</div>
+<button class="details-btn" onclick="toggleDetails('twinFlowDetails')">Show / Hide Details</button>
+</div>
+
+<div class="metric">
+<div class="metric-title">Move per Bay</div>
+<div class="metric-value" id="movePerBayKPI">0.00</div>
+<div class="small-note" id="movePerBayObs">Visible Yard Bays: 0</div>
+<button class="details-btn" onclick="toggleDetails('movePerBayDetails')">Show / Hide Details</button>
+</div>
+
+<div class="metric">
+<div class="metric-title">RTG Picking Efficiency</div>
+<div class="metric-value" id="rtgEfficiencyKPI">0.00%</div>
+<div class="small-note" id="rtgEfficiencyObs">RTG / Move per Bay</div>
+<button class="details-btn" onclick="toggleDetails('rtgDetails')">Show / Hide Details</button>
+</div>
+
+</div>
+</div>
+
+<div id="loadingDetails" class="card hidden">
+<h2>Loading Points Details</h2>
+<div class="table-wrap">
+<table>
+<thead><tr><th>Hour</th><th>QC</th><th>Distinct Yard Blocks</th><th>Yard Blocks</th></tr></thead>
+<tbody id="loadingTable"></tbody>
+</table>
+</div>
+</div>
+
+<div id="rehandlesDetails" class="card hidden">
+<h2>Rehandles Details</h2>
+<div class="table-wrap">
+<table>
+<thead><tr><th>Yard Block/Bay/Row</th><th>Rehandled Container</th><th>Verified Position</th><th>Rehandle Reason</th><th>Tier</th><th>Move Time</th></tr></thead>
+<tbody id="rehandlesTable"></tbody>
+</table>
+</div>
+</div>
+
+<div id="rtgDetails" class="card hidden">
+<div class="section-title">
+<h2>RTG Moves Before Gantry Details</h2>
+<div class="table-actions">
+<button class="details-tab" onclick="showRTGDetail('segments')">RTG Segment Details</button>
+<button class="details-tab" onclick="showRTGDetail('summary')">RTG Summary</button>
+</div>
+</div>
+<div class="table-wrap">
+<table id="rtgDetailTable"></table>
+</div>
+</div>
+
+<div id="movePerBayDetails" class="card hidden">
+<h2>Move per Bay Details</h2>
+<div class="table-wrap">
+<table>
+<thead><tr><th>Vessel ID</th><th>Vessel Name</th><th>Yard Bay</th><th>Move per Bay Count</th></tr></thead>
+<tbody id="movePerBayTable"></tbody>
+</table>
+</div>
+</div>
+
+<div id="yardClashesDetails" class="card hidden">
+<h2>Yard Clashes Details</h2>
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>System Hour</th><th>Clash Window</th><th>Yard Block</th><th>POW 1</th><th>Bay 1</th><th>Moves 1</th><th>POW 2</th><th>Bay 2</th><th>Moves 2</th><th>Clash Moves</th><th>Status</th><th>Clashed Container IDs</th><th>Clash Reason</th>
+</tr>
+</thead>
+<tbody id="yardClashesTable"></tbody>
+</table>
+</div>
+</div>
+
+<div id="twinFlowDetails" class="card hidden">
+<h2>Yard Flow Not Respected</h2>
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Status</th><th>Queue</th><th>Bay Master Seq</th><th>Bay Master Equipment</th><th>Bay Master Yard Position</th><th>Bay Master Vessel Position</th><th>Bay Master Type</th><th>Bay Mirror Seq</th><th>Bay Mirror Equipment</th><th>Bay Mirror Yard Position</th><th>Bay Mirror Vessel Position</th><th>Bay Mirror Type</th><th>Reason</th>
+</tr>
+</thead>
+<tbody id="twinFlowBadTable"></tbody>
+</table>
+</div>
+
+<h2 style="margin-top:28px">All Twin Details</h2>
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Status</th><th>Queue</th><th>Bay Master Seq</th><th>Bay Master Equipment</th><th>Bay Master Yard Position</th><th>Bay Master Vessel Position</th><th>Bay Master Type</th><th>Bay Mirror Seq</th><th>Bay Mirror Equipment</th><th>Bay Mirror Yard Position</th><th>Bay Mirror Vessel Position</th><th>Bay Mirror Type</th><th>Reason</th>
+</tr>
+</thead>
+<tbody id="twinFlowAllTable"></tbody>
+</table>
+</div>
+</div>
+
+<div class="copyright-footer">© SPC Tangier _HBO Confidential & Proprietary</div>
+
+</div>
+
+<script>
+const DETAILS_IDS=["loadingDetails","rehandlesDetails","rtgDetails","movePerBayDetails","yardClashesDetails","twinFlowDetails"];
+
+const CLASH_DISTANCE_LIMIT = 12;
+const SAME_BAY_MIN_GAP_MINUTES = 2;
+const MIN_COUNTED_CLASH_MOVES = 4;
+const MONTH_ABBR = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+const EGPSD_SPECIAL_BAY_ORDER = ["01","03","05","07","09","11","13","15","17","19","21","23","25","27","29","31","33","35","37","39","91","93","95","41","43","45","47","49","51","53","55","57","59","61","63","65","67","69","71","73","75","77","79","81","83","85"];
+
+let latestRTGData={summary:[],bayCounts:[],rtgDetails:[]};
+
+function clean(v){return v===null||v===undefined?"":String(v).trim();}
+function normalize(v){return clean(v);}
+function upper(v){return clean(v).toUpperCase();}
+function escapeHtml(v){return clean(v).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));}
+function boolVal(v){return ["true","t","1","yes","y"].includes(clean(v).toLowerCase());}
+function getNumber(v){const n=Number(v);return Number.isNaN(n)?0:n;}
+function normalizeHeader(h){return clean(h).toLowerCase().replace(/[^a-z0-9]/g,"");}
+function getValue(row,names){
+const keys=Object.keys(row);
+for(const name of names){
+const direct=names.length===1?row[name]:undefined;
+if(direct!==undefined)return direct;
+const target=normalizeHeader(name);
+const found=keys.find(k=>normalizeHeader(k)===target);
+if(found!==undefined)return row[found];
+}
+return "";
+}
+function getContainer(row){return clean(getValue(row,["Conatiner Number","Container Number","Equipment ID","Unit Nbr","Unit","Unit ID","Container ID"]));}
+
+function toggleDetails(id){
+const target=document.getElementById(id);
+const willShow=target.classList.contains("hidden");
+DETAILS_IDS.forEach(detailId=>document.getElementById(detailId).classList.add("hidden"));
+if(willShow)target.classList.remove("hidden");
+}
+
+function processFile(){
+const file=document.getElementById("fileInput").files[0];
+if(!file){alert("Please upload the WI file.");return;}
+document.getElementById("status").innerText="Reading file...";
+const name=file.name.toLowerCase();
+const reader=new FileReader();
+
+if(name.endsWith(".xlsx")||name.endsWith(".xls")){
+reader.onload=e=>{
+const data=new Uint8Array(e.target.result);
+const wb=XLSX.read(data,{type:"array",cellDates:true});
+const sheet=wb.Sheets[wb.SheetNames[0]];
+const rows=XLSX.utils.sheet_to_json(sheet,{defval:"",raw:true});
+runAllKPIs(rows);
+};
+reader.readAsArrayBuffer(file);
+}else{
+reader.onload=e=>runAllKPIs(parseText(e.target.result));
+reader.readAsText(file);
+}
+}
+
+function parseText(text){
+const lines=text.replace(/\r/g,"").split("\n").filter(l=>l.trim()!=="");
+if(lines.length===0)return[];
+const delimiter=lines[0].includes("\t") ? "\t" : lines[0].includes(";") ? ";" : ",";
+const headers=lines[0].split(delimiter).map(h=>h.trim());
+return lines.slice(1).map(line=>{
+const values=line.split(delimiter);
+const obj={};
+headers.forEach((h,i)=>obj[h]=values[i]??"");
+return obj;
+});
+}
+
+function runAllKPIs(rows){
+const terminal=document.getElementById("terminal").value;
+const ratio20=Number(document.getElementById("ratio20").value);
+const ratio40=Number(document.getElementById("ratio40").value);
+if(ratio20<2||ratio40<2){alert("Alternation ratio must be 2 or above.");return;}
+
+const ops=calculateOperationalSummary(rows);
+const loading=calculateEGPSDLoadingPoints(rows);
+const rehandles=calculateEGPSDRehandles(rows);
+const rtg=calculateEGPSDRTGMovesBeforeGantry(rows);
+const clashes=calculateEGPSDYardClashes(rows);
+const twinFlow=calculateEGPSDTwinYardFlow(rows);
+
+latestRTGData=rtg;
+
+renderOperationalSummary(ops);
+renderLoading(loading);
+renderRehandles(rehandles);
+renderRTG(rtg);
+renderYardClashes(clashes);
+renderTwinFlow(twinFlow);
+
+document.getElementById("summaryCard").classList.remove("hidden");
+DETAILS_IDS.forEach(id=>document.getElementById(id).classList.add("hidden"));
+document.getElementById("status").innerText="Calculation completed successfully for "+terminal+".";
+}
+
+function calculateOperationalSummary(rows){
+const validMoveRows=rows.filter(r=>{
+const mk=clean(getValue(r,["Move Kind"])).toLowerCase();
+return mk==="load"||mk==="discharge";
+});
+const totalMoves=validMoveRows.length;
+const totalLoad=validMoveRows.filter(r=>clean(getValue(r,["Move Kind"])).toLowerCase()==="load").length;
+const totalDischarge=validMoveRows.filter(r=>clean(getValue(r,["Move Kind"])).toLowerCase()==="discharge").length;
+const totalRestows=validMoveRows.filter(r=>{
+const c=clean(getValue(r,["Category"])).toUpperCase();
+return c==="RESTOW"||c==="THROUGH";
+}).length;
+const moveTimes=validMoveRows.map(r=>Number(getValue(r,["Move Time","Time/Date"]))).filter(v=>!Number.isNaN(v)&&v>0);
+let operationsHours=0;
+if(moveTimes.length>0)operationsHours=(Math.max(...moveTimes)-Math.min(...moveTimes))*24;
+const plannedPortHours=operationsHours+1.5;
+
+const craneBuckets={};
+validMoveRows.forEach(r=>{
+const crane=clean(getValue(r,["Pow Name","P.O.W.","P.O.W","POW Name","POW","QC","Crane","Crane ID"]));
+const t=Number(getValue(r,["Move Time","Time/Date"]));
+if(!crane||Number.isNaN(t)||t<=0)return;
+if(!craneBuckets[crane])craneBuckets[crane]=[];
+craneBuckets[crane].push(t);
+});
+let sumCraneHours=0;
+Object.keys(craneBuckets).forEach(crane=>{
+const arr=craneBuckets[crane];
+if(arr.length>0)sumCraneHours+=(Math.max(...arr)-Math.min(...arr))*24;
+});
+const ciPlanned=plannedPortHours>0?sumCraneHours/plannedPortHours:0;
+const cmph=sumCraneHours>0?totalMoves/sumCraneHours:0;
+return{totalMoves,totalLoad,totalDischarge,totalRestows,plannedPortHours,sumCraneHours,ciPlanned,cmph};
+}
+
+function renderOperationalSummary(r){
+document.getElementById("totalMoves").innerText=r.totalMoves.toLocaleString();
+document.getElementById("totalLoad").innerText=r.totalLoad.toLocaleString();
+document.getElementById("totalDischarge").innerText=r.totalDischarge.toLocaleString();
+document.getElementById("totalRestows").innerText=r.totalRestows.toLocaleString();
+document.getElementById("plannedPortHours").innerText=r.plannedPortHours.toFixed(1);
+document.getElementById("ciPlanned").innerText=r.ciPlanned.toFixed(2);
+document.getElementById("cmph").innerText=r.cmph.toFixed(2);
+}
+
+/* =========================
+   EGPSD COMMON YARD CONFIG
+========================= */
+
+function getLoadFromYardEGPSD(row){
+const moveKind=clean(getValue(row,["Move Kind"]));
+const moveFrom=clean(getValue(row,["Move From"])).toUpperCase();
+if(moveKind==="Discharge")return"EC";
+if(moveFrom.substring(0,1)==="Z")return"Yes";
+if(moveFrom.length===7){
+if(moveFrom.substring(2,3)==="M"||moveFrom.substring(0,1)==="3"||moveFrom.substring(0,1)==="P")return"No";
+return"Yes";
+}
+return"No";
+}
+
+function getYardPositionEGPSD(row){
+const moveKind=clean(getValue(row,["Move Kind"]));
+const category=clean(getValue(row,["Category"])).toUpperCase();
+const moveFromRaw=getValue(row,["Move From"])===undefined||getValue(row,["Move From"])===null?"":String(getValue(row,["Move From"]));
+const moveFrom=clean(moveFromRaw).toUpperCase();
+if(moveKind==="Discharge")return"EC";
+if(category!=="RESTOW"&&moveFrom.length>6&&moveFrom.length<9&&moveFrom.substring(0,1)!=="P")return moveFrom;
+return"Heap Area";
+}
+
+function getYardBlockEGPSD(row){
+const moveFrom=clean(getValue(row,["Move From"])).toUpperCase();
+const yardPosition=getYardPositionEGPSD(row);
+if(yardPosition.length===8)return moveFrom.substring(0,3);
+if(yardPosition.length===7&&moveFrom.substring(0,1)!=="P")return moveFrom.substring(0,3);
+return"HP";
+}
+
+function getYardBayEGPSD(row){
+const loadFromYard=getLoadFromYardEGPSD(row);
+const yardPosition=getYardPositionEGPSD(row);
+if(loadFromYard==="Yes")return yardPosition.substring(0,5);
+return"HP";
+}
+
+function getYardBlockBayRowEGPSD(row){
+const moveFrom=clean(getValue(row,["Move From"])).toUpperCase();
+const yardPosition=getYardPositionEGPSD(row);
+if(yardPosition.length===8)return moveFrom.substring(0,3);
+if(yardPosition.length===7&&moveFrom.substring(0,1)!=="P")return moveFrom.substring(0,6);
+return"HP";
+}
+
+function getYardTierEGPSD(row){
+const yardPosition=getYardPositionEGPSD(row);
+if(yardPosition!=="Heap Area"&&yardPosition!=="EC")return Number(yardPosition.slice(-1));
+return null;
+}
+
+function isValidYardPositionEGPSD(row){
+const moveKind=clean(getValue(row,["Move Kind"])).toUpperCase();
+const category=clean(getValue(row,["Category"])).toUpperCase();
+const moveFrom=clean(getValue(row,["Move From"])).toUpperCase();
+if(moveKind==="DISCHARGE")return false;
+if(category==="RESTOW")return false;
+if(moveFrom.length<7||moveFrom.length>8)return false;
+if(moveFrom.substring(0,1)==="P")return false;
+if(moveFrom.length===7){
+if(moveFrom.substring(2,3)==="M"||moveFrom.substring(0,1)==="3"||moveFrom.substring(0,1)==="P")return false;
+}
+return true;
+}
+
+/* =========================
+   TIME HELPERS
+========================= */
+
+function excelSerialToDate(serial){
+const n=Number(serial);
+if(!isFinite(n)||n===0)return null;
+const excelEpoch=new Date(Date.UTC(1899,11,30));
+return new Date(excelEpoch.getTime()+n*24*60*60*1000);
+}
+
+function excelSerialDateToHour(value){
+if(value===null||value===undefined||value==="")return"";
+if(!isNaN(Number(value))){
+const d=excelSerialToDate(value);
+if(!d)return"";
+d.setUTCMinutes(0,0,0);
+return d.toISOString().slice(0,13);
+}
+const d=new Date(value);
+if(isNaN(d.getTime()))return"";
+d.setMinutes(0,0,0);
+return d.toISOString().slice(0,13);
+}
+
+function hourText(serial){
+const d=excelSerialToDate(serial);
+if(!d)return"";
+const day=String(d.getUTCDate()).padStart(2,"0");
+const mon=MONTH_ABBR[d.getUTCMonth()];
+const hr=String(d.getUTCHours()).padStart(2,"0");
+return `${day}${mon}${hr}`;
+}
+
+function parseDateTime(value){
+if(value instanceof Date)return value;
+const text=clean(value);
+if(!isNaN(Number(text))&&Number(text)>30000)return new Date((Number(text)-25569)*86400*1000);
+const d=new Date(text);
+if(!isNaN(d.getTime()))return d;
+return null;
+}
+
+function getEgyptSystemDateTime(d){return new Date(d.getTime()+60*60*1000);}
+function formatDateTime(d){
+if(!d)return"";
+const adjusted=getEgyptSystemDateTime(d);
+return adjusted.toLocaleString("en-GB",{day:"2-digit",month:"short",year:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false}).replace(",","");
+}
+function formatClashWindow(start,end){return `${formatDateTime(start)} → ${formatDateTime(end)}`;}
+function getAdjustedHourStart(d){const adjusted=getEgyptSystemDateTime(d);adjusted.setMinutes(0,0,0);return adjusted;}
+function getHourKeyFromDate(d){
+const adjusted=getAdjustedHourStart(d);
+return adjusted.getFullYear()+"-"+String(adjusted.getMonth()+1).padStart(2,"0")+"-"+String(adjusted.getDate()).padStart(2,"0")+"-"+String(adjusted.getHours()).padStart(2,"0");
+}
+function getSystemHourLabel(d){
+const adjusted=getAdjustedHourStart(d);
+let bucketHour=adjusted.getHours()+1;
+if(bucketHour===24)bucketHour=0;
+return"+H"+String(bucketHour).padStart(2,"0")+"00";
+}
+
+/* =========================
+   1. LOADING POINTS
+========================= */
+
+function calculateEGPSDLoadingPoints(rows){
+const grouped={};
+rows.forEach(row=>{
+const moveKind=clean(getValue(row,["Move Kind"])).toUpperCase();
+const isOOG=clean(getValue(row,["Unit Is OOG?","Unit is OOG?"])).toLowerCase();
+const isHazardous=clean(getValue(row,["Unit is Hazardous?","Unit Is Hazardous?"])).toLowerCase();
+if(moveKind!=="LOAD")return;
+if(isOOG==="true")return;
+if(isHazardous==="true")return;
+if(!isValidYardPositionEGPSD(row))return;
+const moveFrom=clean(getValue(row,["Move From"]));
+const qc=clean(getValue(row,["Pow Name","P.O.W.","P.O.W","POW Name","POW","QC","Crane"]));
+const hour=excelSerialDateToHour(getValue(row,["Move Time","Time/Date"]));
+if(!qc||!hour)return;
+const loadingPoint=moveFrom.substring(0,3).toUpperCase();
+const key=`${hour}|${qc}`;
+if(!grouped[key])grouped[key]=new Set();
+grouped[key].add(loadingPoint);
+});
+const details=Object.entries(grouped).map(([key,points])=>{
+const[Hour,QC]=key.split("|");
+return{Hour,QC,LP:points.size,YardBlocks:[...points].sort().join(", ")};
+}).sort((a,b)=>a.Hour.localeCompare(b.Hour)||a.QC.localeCompare(b.QC));
+const avg=details.length?details.reduce((s,x)=>s+x.LP,0)/details.length:0;
+return{avgLoadingPoints:Number(avg.toFixed(2)),hourQCObservations:details.length,details};
+}
+
+function renderLoading(result){
+document.getElementById("loadingKPI").innerText=result.avgLoadingPoints.toFixed(2);
+document.getElementById("loadingObs").innerText="Hour + QC observations: "+result.hourQCObservations.toLocaleString();
+const tbody=document.getElementById("loadingTable");
+tbody.innerHTML="";
+result.details.forEach(r=>{
+const tr=document.createElement("tr");
+tr.innerHTML=`<td>${escapeHtml(r.Hour)}</td><td>${escapeHtml(r.QC)}</td><td><b>${r.LP}</b></td><td>${escapeHtml(r.YardBlocks)}</td>`;
+tbody.appendChild(tr);
+});
+}
+
+/* =========================
+   2. REHANDLES
+========================= */
+
+function getRehandleReasonEGPSD(item){
+let reason="Normal";
+if(item.isHazardous)reason="IMO";
+if(item.isSpecial)reason="Special Stow";
+const category=clean(item.category).toUpperCase();
+if(category==="RESTOW"||category==="THROUGH"){
+reason += " / " + (category==="RESTOW" ? "Restow" : "Through");
+}
+return reason;
+}
+
+function getVerifiedPosition(moveFrom,currentPosition){
+if(clean(moveFrom)&&clean(currentPosition)&&clean(moveFrom).toUpperCase()===clean(currentPosition).toUpperCase())return"Actual";
+return"Planned";
+}
+
+function calculateEGPSDRehandles(rows){
+const excludedRows=[];
+const validLoads=rows.filter(r=>{
+const moveKind=clean(getValue(r,["Move Kind"]));
+const isOOG=clean(getValue(r,["Unit Is OOG?","Unit is OOG?"])).toUpperCase()==="TRUE";
+const loadFromYard=getLoadFromYardEGPSD(r);
+const yardPosition=getYardPositionEGPSD(r);
+const rowKey=getYardBlockBayRowEGPSD(r);
+const tier=getYardTierEGPSD(r);
+const valid=moveKind==="Load"&&!isOOG&&loadFromYard==="Yes"&&yardPosition!=="Heap Area"&&yardPosition!=="EC"&&rowKey!=="HP"&&tier!==null&&tier>=1&&tier<=6;
+if(moveKind==="Load"&&!valid)excludedRows.push(r);
+return valid;
+});
+const groups={};
+validLoads.forEach(r=>{
+const rowKey=getYardBlockBayRowEGPSD(r);
+const tier=getYardTierEGPSD(r);
+const moveTime=Number(getValue(r,["Move Time","Time/Date"]));
+const container=getContainer(r);
+if(!groups[rowKey])groups[rowKey]=[];
+groups[rowKey].push({
+rowKey,tier,moveTime,container,
+moveTimeRaw:clean(getValue(r,["Move Time","Time/Date"])),
+moveFrom:clean(getValue(r,["Move From"])),
+currentPosition:clean(getValue(r,["Current Position","Current position"])),
+category:clean(getValue(r,["Category"])),
+isHazardous:clean(getValue(r,["Unit is Hazardous?","Unit Is Hazardous?"])).toUpperCase()==="TRUE",
+isSpecial:clean(getValue(r,["Unit is Special Stow?","Unit Is Special Stow?"])).toUpperCase()==="TRUE"
+});
+});
+const rehandlesList=[];
+Object.keys(groups).forEach(rowKey=>{
+const group=groups[rowKey];
+group.sort((a,b)=>a.tier-b.tier);
+if(group.length<=1)return;
+const alreadyCounted=new Set();
+for(let i=0;i<group.length-1;i++){
+const causingContainer=group[i];
+for(let j=i+1;j<group.length;j++){
+const rehandledContainer=group[j];
+if(causingContainer.moveTime<rehandledContainer.moveTime){
+const uniqueKey=rowKey+"|"+rehandledContainer.container+"|"+rehandledContainer.tier;
+if(!alreadyCounted.has(uniqueKey)){
+alreadyCounted.add(uniqueKey);
+rehandlesList.push({
+rowKey,
+container:rehandledContainer.container,
+verifiedPosition:getVerifiedPosition(rehandledContainer.moveFrom,rehandledContainer.currentPosition),
+reason:getRehandleReasonEGPSD(rehandledContainer),
+tier:rehandledContainer.tier,
+moveTime:rehandledContainer.moveTimeRaw
+});
+}
+}
+}
+}
+});
+return{
+loadFromYard:validLoads.length,
+rehandlesCount:rehandlesList.length,
+rehandlesPercent:validLoads.length>0?rehandlesList.length/validLoads.length*100:0,
+excludedCount:excludedRows.length,
+rehandlesList
+};
+}
+
+function renderRehandles(result){
+document.getElementById("rehandlesKPI").innerText=result.rehandlesPercent.toFixed(2)+"%";
+document.getElementById("rehandlesObs").innerText="Load from Yard: "+result.loadFromYard.toLocaleString()+" | Rehandles: "+result.rehandlesCount.toLocaleString();
+const tbody=document.getElementById("rehandlesTable");
+tbody.innerHTML="";
+result.rehandlesList.forEach(r=>{
+const tr=document.createElement("tr");
+tr.innerHTML=`<td>${escapeHtml(r.rowKey)}</td><td>${escapeHtml(r.container)}</td><td>${escapeHtml(r.verifiedPosition)}</td><td>${escapeHtml(r.reason)}</td><td>${escapeHtml(r.tier)}</td><td>${escapeHtml(r.moveTime)}</td>`;
+tbody.appendChild(tr);
+});
+}
+
+/* =========================
+   3. RTG MOVES BEFORE GANTRY
+========================= */
+
+function midBayNumber(yardBay){
+const s=clean(yardBay);
+const n=parseInt(s.substring(2,4),10);
+return Number.isNaN(n)?null:n;
+}
+
+function segmentCounts(groupedRows){
+const rows=groupedRows.slice().sort((a,b)=>{
+const h=clean(a.Hours).localeCompare(clean(b.Hours));
+if(h!==0)return h;
+return clean(a["Yard  Bay"]).localeCompare(clean(b["Yard  Bay"]));
+});
+const segments=[];
+const detailRows=[];
+for(let i=0;i<rows.length;i++){
+const bay=rows[i]["Yard  Bay"];
+const cnt=rows[i].cnt;
+if(i===0){
+segments.push(cnt);
+detailRows.push({yardBay:bay,segmentCount:cnt,rule:"First bay in LP"});
+continue;
+}
+const prev=rows[i-1]["Yard  Bay"];
+if(bay===prev){
+segments[segments.length-1]+=cnt;
+detailRows[detailRows.length-1].segmentCount=segments[segments.length-1];
+detailRows[detailRows.length-1].rule="Same bay merged";
+}else{
+const t1=midBayNumber(bay);
+const t2=midBayNumber(prev);
+const twin=t1!==null&&t2!==null&&Math.abs(t1-t2)===2&&t1%2!==0&&t2%2!==0;
+if(twin){
+const bayMinus2=i-2>=0?rows[i-2]["Yard  Bay"]:null;
+const bayPlus1=i+1<rows.length?rows[i+1]["Yard  Bay"]:null;
+if((bayMinus2!==null&&bay===bayMinus2)||(bayPlus1!==null&&prev===bayPlus1)){
+segments[segments.length-1]+=cnt;
+detailRows[detailRows.length-1].segmentCount=segments[segments.length-1];
+detailRows[detailRows.length-1].rule="Twin bay merged";
+}else{
+segments.push(cnt);
+detailRows.push({yardBay:bay,segmentCount:cnt,rule:"New twin segment"});
+}
+}else{
+segments.push(cnt);
+detailRows.push({yardBay:bay,segmentCount:cnt,rule:"New bay segment"});
+}
+}
+}
+return{segments,detailRows};
+}
+
+function calculateEGPSDRTGMovesBeforeGantry(rows){
+rows.forEach(r=>{
+r["Load from yard "]=getLoadFromYardEGPSD(r);
+r["Yard Position"]=getYardPositionEGPSD(r);
+r["Yard Block"]=getYardBlockEGPSD(r);
+r["Yard  Bay"]=r["Load from yard "]==="Yes"?clean(r["Yard Position"]).substring(0,5):"HP";
+r["Hours"]=hourText(getValue(r,["Move Time","Time/Date"]));
+r["_OOG"]=boolVal(getValue(r,["Unit Is OOG?","Unit is OOG?"]));
+r["_IMO"]=boolVal(getValue(r,["Unit is Hazardous?","Unit Is Hazardous?"]));
+});
+const filtered=rows.filter(r=>r["Load from yard "]==="Yes"&&!r["_OOG"]&&!r["_IMO"]&&r["Yard  Bay"]!=="HP");
+const vesselId=clean(rows[0]?.["Carrier"]);
+const vesselName=clean(rows[0]?.["Carrier Name"]);
+const bayCountsMap=new Map();
+filtered.forEach(r=>{
+const bay=r["Yard  Bay"];
+bayCountsMap.set(bay,(bayCountsMap.get(bay)||0)+1);
+});
+const bayCounts=Array.from(bayCountsMap.entries()).map(([bay,count])=>({"Vessel ID":vesselId,"Vessel Name":vesselName,"Yard  Bay":bay,"Move per Bay Count":count}));
+const movePerBay=bayCounts.length?bayCounts.reduce((s,r)=>s+r["Move per Bay Count"],0)/bayCounts.length:0;
+const groupMap=new Map();
+filtered.forEach(r=>{
+const key=`${r["Yard Block"]}||${r["Hours"]}||${r["Yard  Bay"]}`;
+if(!groupMap.has(key))groupMap.set(key,{yardBlock:r["Yard Block"],Hours:r["Hours"],"Yard  Bay":r["Yard  Bay"],cnt:0});
+groupMap.get(key).cnt+=1;
+});
+const byBlock=new Map();
+Array.from(groupMap.values()).forEach(g=>{
+if(!byBlock.has(g.yardBlock))byBlock.set(g.yardBlock,[]);
+byBlock.get(g.yardBlock).push(g);
+});
+let allSegments=[];
+let rtgDetails=[];
+byBlock.forEach((grp,yardBlock)=>{
+const result=segmentCounts(grp);
+allSegments=allSegments.concat(result.segments);
+result.detailRows.forEach(d=>rtgDetails.push({"Vessel ID":vesselId,"Vessel Name":vesselName,"Yard Block":yardBlock,"Yard  Bay":d.yardBay,"Segment Count":d.segmentCount,"Rule":d.rule}));
+});
+const rtg=allSegments.length?allSegments.reduce((a,b)=>a+b,0)/allSegments.length:0;
+const utilisation=movePerBay?rtg/movePerBay:0;
+const summary=[{
+"Vessel ID":vesselId,
+"Vessel Name":vesselName,
+"RTG Moves Before Gantry":Number(rtg.toFixed(6)),
+"Move per Bay":Number(movePerBay.toFixed(6)),
+"RTG Picking Efficiency":Number(utilisation.toFixed(6)),
+"RTG Picking Efficiency %":Number((utilisation*100).toFixed(2)),
+"Filtered Load Moves":filtered.length,
+"Visible Yard Bays":bayCounts.length,
+"RTG Segments":rtgDetails.length
+}];
+return{summary,bayCounts,rtgDetails,rtg,movePerBay,efficiencyPercent:utilisation*100,filteredLoadMoves:filtered.length,visibleYardBays:bayCounts.length};
+}
+
+function renderRTG(result){
+document.getElementById("rtgMovesBeforeGantryKPI").innerText=result.rtg.toFixed(2);
+document.getElementById("movePerBayKPI").innerText=result.movePerBay.toFixed(2);
+document.getElementById("rtgEfficiencyKPI").innerText=result.efficiencyPercent.toFixed(2)+"%";
+document.getElementById("rtgObs").innerText="Move per Bay: "+result.movePerBay.toFixed(2)+" | Efficiency: "+result.efficiencyPercent.toFixed(2)+"%";
+document.getElementById("movePerBayObs").innerText="Visible Yard Bays: "+result.visibleYardBays.toLocaleString();
+
+const mpbBody=document.getElementById("movePerBayTable");
+mpbBody.innerHTML="";
+result.bayCounts.forEach(r=>{
+const tr=document.createElement("tr");
+tr.innerHTML=`<td>${escapeHtml(r["Vessel ID"])}</td><td>${escapeHtml(r["Vessel Name"])}</td><td>${escapeHtml(r["Yard  Bay"])}</td><td>${escapeHtml(r["Move per Bay Count"])}</td>`;
+mpbBody.appendChild(tr);
+});
+showRTGDetail("segments");
+}
+
+function showRTGDetail(type){
+const table=document.getElementById("rtgDetailTable");
+const rows=type==="summary"?latestRTGData.summary:latestRTGData.rtgDetails;
+renderGenericTable(table,rows);
+}
+
+/* =========================
+   4. YARD CLASHES
+========================= */
+
+function isSpecialBlock(block){
+const prefix=clean(block).substring(0,2);
+return["01","02","03","04","05","06","07","08"].includes(prefix);
+}
+function getBayNo(yardBay){
+const match=clean(yardBay).toUpperCase().match(/(\d{2})$/);
+return match?match[1]:"";
+}
+function getBayIndex(block,yardBay){
+const bayNo=getBayNo(yardBay);
+if(!bayNo)return null;
+if(isSpecialBlock(block)){
+const idx=EGPSD_SPECIAL_BAY_ORDER.indexOf(bayNo);
+return idx===-1?null:idx;
+}
+return Number(bayNo);
+}
+function getPhysicalDistance(block,bay1,bay2){
+const i1=getBayIndex(block,bay1);
+const i2=getBayIndex(block,bay2);
+if(i1===null||i2===null)return 999;
+return Math.abs(i1-i2);
+}
+function getGroupDistance(a,b){
+let minDistance=999;
+a.yardBays.forEach(bayA=>b.yardBays.forEach(bayB=>{
+const d=getPhysicalDistance(a.yardBlock,bayA,bayB);
+if(d<minDistance)minDistance=d;
+}));
+return minDistance;
+}
+function getMoveFromClash(row){return clean(getValue(row,["Move From","Move from","MoveFrom","From Position"])).toUpperCase();}
+function getYardPositionClash(row){
+const moveFrom=getMoveFromClash(row);
+if(moveFrom&&moveFrom.length>=7&&moveFrom.substring(0,1)!=="P")return moveFrom;
+return"Heap Area";
+}
+function getYardBlockClash(row){
+const pos=getYardPositionClash(row);
+if(pos!=="Heap Area"&&pos.length>=5)return pos.substring(0,3);
+return"HP";
+}
+function getYardBayClash(row){
+const pos=getYardPositionClash(row);
+if(pos!=="Heap Area"&&pos.length>=5)return pos.substring(0,5);
+return"HP";
+}
+function getLoadFromYardClash(row){
+const moveFrom=getMoveFromClash(row);
+if(moveFrom.length>=7&&moveFrom.substring(0,1)!=="P")return"Yes";
+return"No";
+}
+function is20ftClash(row){
+const type=clean(getValue(row,["Type","ISO","ISO Type","Equipment Type","Container Type","Length"])).toUpperCase();
+return type.startsWith("2")||type.includes("20");
+}
+function merge20ftTwinGroups(groups){
+const byPow={};
+groups.forEach(g=>{
+const key=g.hourKey+"|"+g.yardBlock+"|"+g.pow;
+if(!byPow[key])byPow[key]=[];
+byPow[key].push(g);
+});
+let mergedAll=[];
+Object.values(byPow).forEach(list=>{
+list.sort((a,b)=>(getBayIndex(a.yardBlock,a.yardBay)??999)-(getBayIndex(b.yardBlock,b.yardBay)??999));
+let used=new Set();
+for(let i=0;i<list.length;i++){
+if(used.has(i))continue;
+let base={...list[i]};
+base.yardBays=[...list[i].yardBays];
+base.containerIds=[...list[i].containerIds];
+used.add(i);
+for(let j=i+1;j<list.length;j++){
+if(used.has(j))continue;
+const candidate=list[j];
+const sameCrane=base.pow===candidate.pow;
+const both20ft=base.is20ft&&candidate.is20ft;
+const adjacent=getGroupDistance(base,candidate)===1;
+if(sameCrane&&both20ft&&adjacent){
+base.moves+=candidate.moves;
+base.yardBays.push(...candidate.yardBays);
+base.containerIds.push(...candidate.containerIds);
+if(candidate.start<base.start)base.start=candidate.start;
+if(candidate.end>base.end)base.end=candidate.end;
+used.add(j);
+}
+}
+base.yardBay=[...new Set(base.yardBays)].join(" / ");
+mergedAll.push(base);
+}
+});
+return mergedAll;
+}
+
+function calculateEGPSDYardClashes(rows){
+let moves=[];
+rows.forEach(row=>{
+const moveKind=clean(getValue(row,["Move Kind","MoveKind"]));
+const pow=clean(getValue(row,["P.O.W.","P.O.W","Pow Name","POW Name","POW","QC","Crane"]));
+const containerId=getContainer(row);
+const moveTime=parseDateTime(getValue(row,["Move Time","MoveTime","Move Date","Move Date Time","Hour","Hours","Time/Date"]));
+const yardBlock=getYardBlockClash(row);
+const yardBay=getYardBayClash(row);
+if(moveKind==="Load"&&getLoadFromYardClash(row)==="Yes"&&pow!==""&&moveTime&&yardBlock!=="HP"&&yardBay!=="HP"){
+moves.push({moveTime,pow,yardBlock,yardBay,containerId,is20ft:is20ftClash(row)});
+}
+});
+moves.sort((a,b)=>a.moveTime-b.moveTime);
+moves.forEach(m=>{m.hourKey=getHourKeyFromDate(m.moveTime);m.systemHour=getSystemHourLabel(m.moveTime);});
+const totalLoadMoves=moves.length;
+const summary={};
+moves.forEach(m=>{
+const key=[m.hourKey,m.yardBlock,m.pow,m.yardBay,m.is20ft?"20":"OTHER"].join("||");
+if(!summary[key])summary[key]={hourKey:m.hourKey,systemHour:m.systemHour,yardBlock:m.yardBlock,pow:m.pow,yardBay:m.yardBay,yardBays:[m.yardBay],moves:0,start:m.moveTime,end:m.moveTime,containerIds:[],is20ft:m.is20ft};
+summary[key].moves++;
+if(m.containerId)summary[key].containerIds.push(m.containerId);
+if(m.moveTime<summary[key].start)summary[key].start=m.moveTime;
+if(m.moveTime>summary[key].end)summary[key].end=m.moveTime;
+});
+const mergedGroups=merge20ftTwinGroups(Object.values(summary));
+const grouped={};
+mergedGroups.forEach(s=>{
+const key=s.hourKey+"||"+s.yardBlock;
+if(!grouped[key])grouped[key]=[];
+grouped[key].push(s);
+});
+let totalClashMoves=0,totalClashes=0,totalPotentialClashes=0;
+const details=[];
+Object.values(grouped).forEach(group=>{
+group.sort((a,b)=>a.start-b.start);
+const cranes=new Set(group.map(x=>x.pow));
+if(cranes.size<=1)return;
+let usedGroups=new Set();
+for(let i=0;i<group.length;i++){
+for(let j=i+1;j<group.length;j++){
+const a=group[i],b=group[j];
+if(a.pow===b.pow)continue;
+let isClash=false,reason="";
+const sameDisplayedBay=a.yardBay===b.yardBay;
+if(sameDisplayedBay){
+const gapAB=(b.start-a.end)/60000;
+const gapBA=(a.start-b.end)/60000;
+const separated=gapAB>=SAME_BAY_MIN_GAP_MINUTES||gapBA>=SAME_BAY_MIN_GAP_MINUTES;
+if(!separated){isClash=true;reason="Same bay feeding multiple cranes without 2 min separation";}
+}else{
+const distance=getGroupDistance(a,b);
+if(distance<CLASH_DISTANCE_LIMIT){isClash=true;reason="Feeding bays are closer than 12";}
+}
+if(isClash){
+totalPotentialClashes++;
+const clashMoves=Math.min(a.moves,b.moves);
+const lowerMoves=Math.min(a.moves,b.moves);
+const counted=lowerMoves>MIN_COUNTED_CLASH_MOVES;
+if(counted){
+const keyA=`${a.hourKey}|${a.yardBlock}|${a.pow}|${a.yardBay}`;
+const keyB=`${b.hourKey}|${b.yardBlock}|${b.pow}|${b.yardBay}`;
+if(!usedGroups.has(keyA)){totalClashMoves+=a.moves;usedGroups.add(keyA);}
+if(!usedGroups.has(keyB)){totalClashMoves+=b.moves;usedGroups.add(keyB);}
+totalClashes++;
+}
+details.push({
+systemHour:a.systemHour,
+clashWindow:formatClashWindow(a.start>b.start?a.start:b.start,a.end<b.end?a.end:b.end),
+yardBlock:a.yardBlock,
+pow1:a.pow,
+bay1:a.yardBay,
+moves1:a.moves,
+pow2:b.pow,
+bay2:b.yardBay,
+moves2:b.moves,
+clashMoves,
+status:counted?"Counted Clash":"Potential Clash",
+containerIds:[...a.containerIds,...b.containerIds].join(", "),
+reason
+});
+}
+}
+}
+});
+return{
+totalLoadMoves,
+totalClashMoves,
+totalClashes,
+totalPotentialClashes,
+clashPercent:totalLoadMoves>0?totalClashMoves/totalLoadMoves*100:0,
+details
+};
+}
+
+function renderYardClashes(result){
+document.getElementById("yardClashesKPI").innerText=result.clashPercent.toFixed(2)+"%";
+document.getElementById("yardClashesObs").innerText="Counted Moves: "+result.totalClashMoves.toLocaleString()+" | Counted Pairs: "+result.totalClashes.toLocaleString();
+const tbody=document.getElementById("yardClashesTable");
+tbody.innerHTML="";
+result.details.forEach(r=>{
+const tr=document.createElement("tr");
+tr.innerHTML=`<td>${escapeHtml(r.systemHour)}</td><td>${escapeHtml(r.clashWindow)}</td><td>${escapeHtml(r.yardBlock)}</td><td>${escapeHtml(r.pow1)}</td><td>${escapeHtml(r.bay1)}</td><td>${r.moves1}</td><td>${escapeHtml(r.pow2)}</td><td>${escapeHtml(r.bay2)}</td><td>${r.moves2}</td><td>${r.clashMoves}</td><td class="${r.status==="Counted Clash"?"bad":"warn"}">${escapeHtml(r.status)}</td><td>${escapeHtml(r.containerIds)}</td><td>${escapeHtml(r.reason)}</td>`;
+tbody.appendChild(tr);
+});
+}
+
+/* =========================
+   5. TWIN YARD FLOW ADHERENCE
+========================= */
+
+function toNumber(v){
+const n=Number(clean(v).replace(/'/g,"").replace(/[^0-9.-]/g,""));
+return Number.isNaN(n)?null:n;
+}
+function getMoveKindTwin(row){return upper(getValue(row,["Move Kind"]));}
+function getLengthTwin(row){return clean(getValue(row,["Length"]));}
+function getMoveFromTwin(row){return upper(getValue(row,["Move From"]));}
+function getYardPositionTwin(row){
+const moveKind=getMoveKindTwin(row);
+const moveFrom=getMoveFromTwin(row);
+const category=upper(getValue(row,["Category"]));
+if(moveKind==="DISCHARGE")return"EC";
+if(category!=="RESTOW"&&moveFrom.length>6&&moveFrom.length<9&&moveFrom.substring(0,1)!=="P")return moveFrom;
+return"HEAP AREA";
+}
+function getLoadFromRTGYardTwin(row){
+const moveKind=getMoveKindTwin(row);
+const moveFrom=getMoveFromTwin(row);
+if(moveKind==="DISCHARGE")return"EC";
+if(moveFrom.substring(0,1)==="Z")return"YES";
+if(moveFrom.trim().length===7){
+const thirdChar=moveFrom.substring(2,3);
+const firstChar=moveFrom.substring(0,1);
+if(thirdChar==="M"||firstChar==="3"||firstChar==="P")return"NO";
+return"YES";
+}
+return"NO";
+}
+function getYardBlockTwin(yardPosition){
+yardPosition=upper(yardPosition);
+if(yardPosition.length===7||yardPosition.length===8){
+if(yardPosition.substring(0,1)!=="P")return yardPosition.substring(0,3);
+}
+return"HP";
+}
+function getYardBayNumberTwin(yardPosition){
+yardPosition=upper(yardPosition);
+if(yardPosition.length<5)return null;
+return toNumber(yardPosition.substring(3,5));
+}
+function getContainerTypeTwin(row){
+const types=[];
+const imo=upper(getValue(row,["Unit is Hazardous?","Unit Is Hazardous?"]));
+const reefer=upper(getValue(row,["Unit is live Reefer ?","Unit is live Reefer?"]));
+const special=upper(getValue(row,["Unit is Special Stow?","Unit Is Special Stow?"]));
+if(imo==="TRUE"||imo==="YES")types.push("IMO");
+if(reefer==="TRUE"||reefer==="YES")types.push("Reefer");
+if(special&&special!=="FALSE"&&special!=="NO")types.push("Special Stow");
+return types.length?types.join(" + "):"Normal";
+}
+function isValidTwinScope(row){
+const moveKind=getMoveKindTwin(row);
+const length=getLengthTwin(row);
+const oog=upper(getValue(row,["Unit Is OOG?","Unit is OOG?"]));
+const yardPosition=getYardPositionTwin(row);
+return moveKind==="LOAD"&&length==="20'"&&oog!=="TRUE"&&getLoadFromRTGYardTwin(row)==="YES"&&yardPosition!=="HEAP AREA"&&yardPosition!=="EC";
+}
+function parseVesselPosition(pos){
+pos=clean(pos);
+if(pos.includes("-"))pos=pos.split("-").pop();
+pos=pos.replace(/\D/g,"");
+if(pos.length<6)return null;
+const bay=Number(pos.substring(0,2));
+const row=pos.substring(2,4);
+const tier=pos.substring(4,6);
+if(Number.isNaN(bay))return null;
+return{bay,row,tier};
+}
+function areAdjacentVesselPositions(pos1,pos2){
+const a=parseVesselPosition(pos1);
+const b=parseVesselPosition(pos2);
+if(!a||!b)return false;
+return Math.abs(a.bay-b.bay)===2&&a.row===b.row&&a.tier===b.tier;
+}
+const specialBayOrder=[1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,91,93,95,41,43,45,47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79];
+function isSpecialBlockTwin(block){
+const n=Number(block.substring(0,2));
+return n>=1&&n<=8;
+}
+function getBayFlowIndex(block,bay){
+if(bay===null)return null;
+if(isSpecialBlockTwin(block)){
+const idx=specialBayOrder.indexOf(bay);
+if(idx>=0)return idx;
+return 9999+bay;
+}
+return bay;
+}
+function compareSameBlockFlow(pos1,pos2){
+const block1=getYardBlockTwin(pos1);
+const bay1=getYardBayNumberTwin(pos1);
+const bay2=getYardBayNumberTwin(pos2);
+const idx1=getBayFlowIndex(block1,bay1);
+const idx2=getBayFlowIndex(block1,bay2);
+if(idx1===null||idx2===null)return{respected:false,reason:"Cannot read yard bay"};
+if(idx1<=idx2)return{respected:true,reason:"Same block yard bay flow respected"};
+return{respected:false,reason:"Same block yard bay flow not respected"};
+}
+function compareDifferentBlockFlow(pos1,pos2){
+const block1=getYardBlockTwin(pos1);
+const block2=getYardBlockTwin(pos2);
+const n1=Number(block1.substring(0,2));
+const n2=Number(block2.substring(0,2));
+if(Number.isNaN(n1)||Number.isNaN(n2))return{respected:false,reason:"Cannot read yard block"};
+if(n1>n2)return{respected:true,reason:"Different block/berth flow respected: south to north"};
+if(n1<n2)return{respected:false,reason:"Different block/berth flow not respected: should follow south to north"};
+return{respected:true,reason:"Different block fallback respected"};
+}
+function validateYardFlow(a,b){
+const pos1=getYardPositionTwin(a);
+const pos2=getYardPositionTwin(b);
+const block1=getYardBlockTwin(pos1);
+const block2=getYardBlockTwin(pos2);
+if(block1===block2)return compareSameBlockFlow(pos1,pos2);
+return compareDifferentBlockFlow(pos1,pos2);
+}
+function twinRowKey(row){return[clean(getValue(row,["Queue"])),clean(getValue(row,["Move Time","Time/Date"]))].join("||");}
+function findTwins(rows){
+const groups={};
+rows.forEach(row=>{
+const key=twinRowKey(row);
+if(!groups[key])groups[key]=[];
+groups[key].push(row);
+});
+const twins=[];
+const used=new Set();
+Object.values(groups).forEach(group=>{
+group.sort((a,b)=>Number(getValue(a,["Sequence"]))-Number(getValue(b,["Sequence"])));
+for(let i=0;i<group.length;i++){
+const a=group[i];
+const idA=getContainer(a);
+if(used.has(idA))continue;
+let found=null;
+for(let j=i+1;j<group.length;j++){
+const b=group[j];
+const idB=getContainer(b);
+if(used.has(idB))continue;
+const vesselA=clean(getValue(a,["Planned Position","Move To"]));
+const vesselB=clean(getValue(b,["Planned Position","Move To"]));
+if(areAdjacentVesselPositions(vesselA,vesselB)){found=b;break;}
+}
+if(found){
+used.add(idA);
+used.add(getContainer(found));
+twins.push({first:a,second:found});
+}
+}
+});
+return twins;
+}
+
+function twinDetailObject(twin,result){
+const a=twin.first,b=twin.second;
+return{
+status:result.respected?"Respected":"Not Respected",
+queue:clean(getValue(a,["Queue"])),
+masterSeq:clean(getValue(a,["Sequence"])),
+masterEquipment:getContainer(a),
+masterYard:getYardPositionTwin(a),
+masterVessel:clean(getValue(a,["Planned Position","Move To"])),
+masterType:getContainerTypeTwin(a),
+mirrorSeq:clean(getValue(b,["Sequence"])),
+mirrorEquipment:getContainer(b),
+mirrorYard:getYardPositionTwin(b),
+mirrorVessel:clean(getValue(b,["Planned Position","Move To"])),
+mirrorType:getContainerTypeTwin(b),
+reason:result.reason
+};
+}
+
+function calculateEGPSDTwinYardFlow(rows){
+const scoped=rows.filter(isValidTwinScope);
+const twins=findTwins(scoped);
+const allDetails=[];
+const badDetails=[];
+let respecting=0;
+let notRespecting=0;
+twins.forEach(twin=>{
+const result=validateYardFlow(twin.first,twin.second);
+if(result.respected)respecting++;else notRespecting++;
+const d=twinDetailObject(twin,result);
+allDetails.push(d);
+if(!result.respected)badDetails.push(d);
+});
+return{
+totalTwins:twins.length,
+respecting,
+notRespecting,
+adherence:twins.length?respecting/twins.length*100:0,
+allDetails,
+badDetails
+};
+}
+
+function renderTwinFlow(result){
+document.getElementById("twinFlowKPI").innerText=result.adherence.toFixed(2)+"%";
+document.getElementById("twinFlowObs").innerText="Total Twins: "+result.totalTwins.toLocaleString()+" | Not Respecting: "+result.notRespecting.toLocaleString();
+renderTwinFlowRows(document.getElementById("twinFlowBadTable"),result.badDetails);
+renderTwinFlowRows(document.getElementById("twinFlowAllTable"),result.allDetails);
+}
+function renderTwinFlowRows(tbody,rows){
+tbody.innerHTML="";
+rows.forEach(r=>{
+const tr=document.createElement("tr");
+tr.innerHTML=`<td class="${r.status==="Respected"?"good":"bad"}">${escapeHtml(r.status)}</td><td>${escapeHtml(r.queue)}</td><td>${escapeHtml(r.masterSeq)}</td><td>${escapeHtml(r.masterEquipment)}</td><td>${escapeHtml(r.masterYard)}</td><td>${escapeHtml(r.masterVessel)}</td><td>${escapeHtml(r.masterType)}</td><td>${escapeHtml(r.mirrorSeq)}</td><td>${escapeHtml(r.mirrorEquipment)}</td><td>${escapeHtml(r.mirrorYard)}</td><td>${escapeHtml(r.mirrorVessel)}</td><td>${escapeHtml(r.mirrorType)}</td><td>${escapeHtml(r.reason)}</td>`;
+tbody.appendChild(tr);
+});
+}
+
+/* =========================
+   GENERIC RENDER / EXPORT
+========================= */
+
+function renderGenericTable(table,rows){
+if(!rows||!rows.length){
+table.innerHTML="<tbody><tr><td>No data</td></tr></tbody>";
+return;
+}
+const cols=Object.keys(rows[0]);
+table.innerHTML=`<thead><tr>${cols.map(c=>`<th>${escapeHtml(c)}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td>${escapeHtml(r[c])}</td>`).join("")}</tr>`).join("")}</tbody>`;
+}
+
+function getExportFileName(){
+const rows=window.latestRows||[];
+const carrier=clean(rows[0]?.["Carrier"])||"RTG";
+const vessel=clean(rows[0]?.["Carrier Name"])||"KPI";
+return (carrier+" - "+vessel+" RTG KPIs.pdf").replace(/[\\/:*?"<>|]/g,"_");
+}
+
+async function exportKPIReport(){
+const summary=document.getElementById("summaryCard");
+if(summary.classList.contains("hidden")){
+alert("Please calculate KPIs before exporting.");
+return;
+}
+const page=document.getElementById("reportPage");
+page.classList.add("export-clean");
+const canvas=await html2canvas(page,{scale:2,useCORS:true,backgroundColor:"#ffffff"});
+page.classList.remove("export-clean");
+const imgData=canvas.toDataURL("image/png");
+const { jsPDF }=window.jspdf;
+const pdf=new jsPDF("p","mm","a4");
+const pageWidth=210;
+const pageHeight=297;
+const imgWidth=pageWidth;
+const imgHeight=canvas.height*imgWidth/canvas.width;
+let heightLeft=imgHeight;
+let position=0;
+pdf.addImage(imgData,"PNG",0,position,imgWidth,imgHeight);
+heightLeft-=pageHeight;
+while(heightLeft>0){
+position=heightLeft-imgHeight;
+pdf.addPage();
+pdf.addImage(imgData,"PNG",0,position,imgWidth,imgHeight);
+heightLeft-=pageHeight;
+}
+pdf.save(getExportFileName());
+}
+</script>
+</body>
+</html>
