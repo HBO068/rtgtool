@@ -6,8 +6,9 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-
 <style>
+* { -webkit-user-select:none; -moz-user-select:none; -ms-user-select:none; user-select:none; }
+input,textarea,select { -webkit-user-select:text; -moz-user-select:text; user-select:text; }
 body{margin:0;font-family:Segoe UI,Arial,sans-serif;background:radial-gradient(circle at top left,#dff3f8 0,#eef5f8 36%,#f8fbfd 100%);color:#0f172a}
 .page{max-width:1450px;margin:35px auto;padding:20px}
 .header{position:relative;overflow:hidden;background:linear-gradient(135deg,#002f4b 0%,#006b8f 55%,#00a3ad 100%);color:white;padding:34px;border-radius:24px;margin-bottom:24px;box-shadow:0 16px 34px rgba(0,59,92,.22)}
@@ -52,6 +53,12 @@ tr:hover{background:#f8fafc}
 .table-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .details-tab{width:auto;padding:10px 14px;background:#0077a3}
 .details-tab:hover{background:#005f82}
+.twins-separator{background:#003b5c!important;color:white!important;font-size:15px;font-weight:800;text-align:center}
+.detail-card-header{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:4px}
+.detail-card-header h2{margin:0}
+.export-btn-detail{background:#00a3ad;color:white;border:none;border-radius:10px;padding:9px 18px;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap;width:auto}
+.export-btn-detail:hover{background:#007f88}
+.filter-box{max-width:280px;margin:10px 0 0 0}
 .copyright-footer{width:100%;text-align:center;padding:18px 10px;margin-top:30px;font-size:12px;font-weight:700;letter-spacing:1px;color:#64748b;border-top:1px solid #dbe4ea}
 .export-clean .details-btn,.export-clean .export-btn,.export-clean .controls-card{display:none!important}
 .export-clean{background:#fff!important}
@@ -59,8 +66,58 @@ tr:hover{background:#f8fafc}
 @media(max-width:700px){.controls,.kpi-grid,.ops-row.moves-row,.ops-row.operation-row{grid-template-columns:1fr;width:100%}}
 </style>
 </head>
-
 <body>
+
+<!-- Protection Layer 1 -->
+<script>
+(function devToolsDebuggerGuard(){
+  var _threshold=150;
+  function _check(){
+    var _t=performance.now();
+    (function(){})['constructor']('debugger')();
+    if(performance.now()-_t>_threshold){
+      document.body.innerHTML='<div style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:Segoe UI,Arial,sans-serif;font-size:28px;font-weight:bold;background:#002f4b;color:white;text-align:center;padding:40px;">Unauthorized Inspection Detected</div>';
+      document.documentElement.style.background='#002f4b';
+    }
+  }
+  try{setInterval(_check,1000);}catch(e){}
+})();
+</script>
+
+<!-- Protection Layer 2 -->
+<script>
+(function devToolsSizeGuard(){
+  var _triggered=false;
+  function _checkSize(){
+    var _wDiff=window.outerWidth-window.innerWidth;
+    var _hDiff=window.outerHeight-window.innerHeight;
+    if((_wDiff>160||_hDiff>160)&&!_triggered){
+      _triggered=true;
+      document.body.innerHTML='<div style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:Segoe UI,Arial,sans-serif;font-size:28px;font-weight:bold;background:#002f4b;color:white;text-align:center;padding:40px;">Unauthorized Inspection Detected</div>';
+    }
+  }
+  window.addEventListener('resize',_checkSize);
+  setInterval(_checkSize,800);
+})();
+</script>
+
+<!-- Protection Layer 4 -->
+<script>
+(function keyboardAndEventGuard(){
+  document.addEventListener('contextmenu',function(e){e.preventDefault();},true);
+  document.addEventListener('copy',function(e){e.preventDefault();},true);
+  document.addEventListener('cut',function(e){e.preventDefault();},true);
+  document.addEventListener('dragstart',function(e){e.preventDefault();},true);
+  document.addEventListener('keydown',function(e){
+    var key=(e.key||'').toUpperCase();
+    if(e.key==='F12'){e.preventDefault();e.stopPropagation();return false;}
+    if(e.ctrlKey&&e.shiftKey&&['I','J','C','K'].includes(key)){e.preventDefault();e.stopPropagation();return false;}
+    if(e.ctrlKey&&['U','S','P'].includes(key)){e.preventDefault();e.stopPropagation();return false;}
+    if((e.ctrlKey&&key==='A')||(e.ctrlKey&&e.shiftKey&&key==='S')){e.preventDefault();e.stopPropagation();return false;}
+  },true);
+})();
+</script>
+
 <div class="page" id="reportPage">
 
 <div class="header">
@@ -75,42 +132,18 @@ tr:hover{background:#f8fafc}
 
 <div class="card controls-card">
 <div class="controls">
-<div>
-<label>Upload Work Instruction File</label>
-<input type="file" id="fileInput" accept=".txt,.csv,.xlsx,.xls">
-</div>
-
-<div>
-<label>Terminal</label>
-<select id="terminal">
-<option value="EGPSD">EGPSD</option>
-</select>
-</div>
-
-<div>
-<label>Alt.Ratio 20ft</label>
-<input type="number" id="ratio20" value="3" min="2">
-</div>
-
-<div>
-<label>Alt.Ratio 40ft</label>
-<input type="number" id="ratio40" value="3" min="2">
-</div>
-
-<div>
-<button onclick="processFile()">Calculate KPIs</button>
-</div>
-
-<div>
-<button class="export-btn" onclick="exportKPIReport()">Export PDF</button>
-</div>
+<div><label>Upload Work Instruction File</label><input type="file" id="fileInput" accept=".txt,.csv,.xlsx,.xls"></div>
+<div><label>Terminal</label><select id="terminal"><option value="EGPSD">EGPSD</option></select></div>
+<div><label>Alt.Ratio 20ft</label><input type="number" id="ratio20" value="3" min="2"></div>
+<div><label>Alt.Ratio 40ft</label><input type="number" id="ratio40" value="3" min="2"></div>
+<div><button onclick="processFile()">Calculate KPIs</button></div>
+<div><button class="export-btn" onclick="exportKPIReport()">Export PDF</button></div>
 </div>
 <div id="status" class="status">Waiting for file upload...</div>
 </div>
 
 <div id="summaryCard" class="card hidden">
 <h2>Operational Summary</h2>
-
 <div class="ops-grid">
 <div class="ops-row moves-row">
 <div class="ops-metric"><div class="ops-title">Total Moves</div><div class="ops-value" id="totalMoves">0</div></div>
@@ -164,43 +197,35 @@ tr:hover{background:#f8fafc}
 </div>
 
 <div class="metric">
-<div class="metric-title">Move per Bay</div>
-<div class="metric-value" id="movePerBayKPI">0.00</div>
-<div class="small-note" id="movePerBayObs">Visible Yard Bays: 0</div>
-<button class="details-btn" onclick="toggleDetails('movePerBayDetails')">Show / Hide Details</button>
+<div class="metric-title">Twin Planning KPI</div>
+<div class="metric-value" id="twinKPI">0.00%</div>
+<div class="small-note" id="twinObs">Opportunities: 0 Pairs | Planned: 0 Pairs</div>
+<button class="details-btn" onclick="toggleDetails('twinDetails')">Show / Hide Details</button>
 </div>
 
 <div class="metric">
-<div class="metric-title">RTG Picking Efficiency</div>
-<div class="metric-value" id="rtgEfficiencyKPI">0.00%</div>
-<div class="small-note" id="rtgEfficiencyObs">RTG / Move per Bay</div>
-<button class="details-btn" onclick="toggleDetails('rtgDetails')">Show / Hide Details</button>
+<div class="metric-title">Alternation KPI</div>
+<div class="metric-value" id="alternationKPI">0.00%</div>
+<div class="small-note" id="alternationObs">Load from Yard: 0 | AltCount: 0</div>
+<button class="details-btn" onclick="toggleDetails('alternationDetails')">Show / Hide Details</button>
 </div>
 
 </div>
 </div>
 
+<!-- Detail cards -->
 <div id="loadingDetails" class="card hidden">
-<h2>Loading Points Details</h2>
-<div class="table-wrap">
-<table>
-<thead><tr><th>Hour</th><th>QC</th><th>Distinct Yard Blocks</th><th>Yard Blocks</th></tr></thead>
-<tbody id="loadingTable"></tbody>
-</table>
-</div>
+<div class="detail-card-header"><h2>Loading Points Details</h2><button class="export-btn-detail" onclick="exportDetailPDF('loadingDetails','Loading Points')">Export Details PDF</button></div>
+<div class="table-wrap"><table><thead><tr><th>Hour</th><th>QC</th><th>Distinct Yard Blocks</th><th>Yard Blocks</th></tr></thead><tbody id="loadingTable"></tbody></table></div>
 </div>
 
 <div id="rehandlesDetails" class="card hidden">
-<h2>Rehandles Details</h2>
-<div class="table-wrap">
-<table>
-<thead><tr><th>Yard Block/Bay/Row</th><th>Rehandled Container</th><th>Verified Position</th><th>Rehandle Reason</th><th>Tier</th><th>Move Time</th></tr></thead>
-<tbody id="rehandlesTable"></tbody>
-</table>
-</div>
+<div class="detail-card-header"><h2>Rehandles Details</h2><button class="export-btn-detail" onclick="exportDetailPDF('rehandlesDetails','Rehandles')">Export Details PDF</button></div>
+<div class="table-wrap"><table><thead><tr><th>Yard Block/Bay/Row</th><th>Rehandled Container</th><th>Verified Position</th><th>Rehandle Reason</th><th>Tier</th><th>Move Time</th></tr></thead><tbody id="rehandlesTable"></tbody></table></div>
 </div>
 
 <div id="rtgDetails" class="card hidden">
+<div class="detail-card-header">
 <div class="section-title">
 <h2>RTG Moves Before Gantry Details</h2>
 <div class="table-actions">
@@ -208,68 +233,40 @@ tr:hover{background:#f8fafc}
 <button class="details-tab" onclick="showRTGDetail('summary')">RTG Summary</button>
 </div>
 </div>
-<div class="table-wrap">
-<table id="rtgDetailTable"></table>
+<button class="export-btn-detail" onclick="exportDetailPDF('rtgDetails','RTG Moves Before Gantry')">Export Details PDF</button>
 </div>
-</div>
-
-<div id="movePerBayDetails" class="card hidden">
-<h2>Move per Bay Details</h2>
-<div class="table-wrap">
-<table>
-<thead><tr><th>Vessel ID</th><th>Vessel Name</th><th>Yard Bay</th><th>Move per Bay Count</th></tr></thead>
-<tbody id="movePerBayTable"></tbody>
-</table>
-</div>
+<div class="table-wrap"><table id="rtgDetailTable"></table></div>
 </div>
 
 <div id="yardClashesDetails" class="card hidden">
-<h2>Yard Clashes Details</h2>
-<div class="table-wrap">
-<table>
-<thead>
-<tr>
-<th>System Hour</th><th>Clash Window</th><th>Yard Block</th><th>POW 1</th><th>Bay 1</th><th>Moves 1</th><th>POW 2</th><th>Bay 2</th><th>Moves 2</th><th>Clash Moves</th><th>Status</th><th>Clashed Container IDs</th><th>Clash Reason</th>
-</tr>
-</thead>
-<tbody id="yardClashesTable"></tbody>
-</table>
-</div>
+<div class="detail-card-header"><h2>Yard Clashes Details</h2><button class="export-btn-detail" onclick="exportDetailPDF('yardClashesDetails','Yard Clashes')">Export Details PDF</button></div>
+<div class="table-wrap"><table><thead><tr><th>System Hour</th><th>Clash Window</th><th>Yard Block</th><th>POW 1</th><th>Bay 1</th><th>Moves 1</th><th>POW 2</th><th>Bay 2</th><th>Moves 2</th><th>Clash Moves</th><th>Status</th><th>Clashed Container IDs</th><th>Clash Reason</th></tr></thead><tbody id="yardClashesTable"></tbody></table></div>
 </div>
 
 <div id="twinFlowDetails" class="card hidden">
-<h2>Yard Flow Not Respected</h2>
-<div class="table-wrap">
-<table>
-<thead>
-<tr>
-<th>Status</th><th>Queue</th><th>Bay Master Seq</th><th>Bay Master Equipment</th><th>Bay Master Yard Position</th><th>Bay Master Vessel Position</th><th>Bay Master Type</th><th>Bay Mirror Seq</th><th>Bay Mirror Equipment</th><th>Bay Mirror Yard Position</th><th>Bay Mirror Vessel Position</th><th>Bay Mirror Type</th><th>Reason</th>
-</tr>
-</thead>
-<tbody id="twinFlowBadTable"></tbody>
-</table>
-</div>
-
+<div class="detail-card-header"><h2>Yard Flow Not Respected</h2><button class="export-btn-detail" onclick="exportDetailPDF('twinFlowDetails','Twin Yard Flow')">Export Details PDF</button></div>
+<div class="table-wrap"><table><thead><tr><th>Status</th><th>Queue</th><th>Bay Master Seq</th><th>Bay Master Equipment</th><th>Bay Master Yard Position</th><th>Bay Master Vessel Position</th><th>Bay Master Type</th><th>Bay Mirror Seq</th><th>Bay Mirror Equipment</th><th>Bay Mirror Yard Position</th><th>Bay Mirror Vessel Position</th><th>Bay Mirror Type</th><th>Reason</th></tr></thead><tbody id="twinFlowBadTable"></tbody></table></div>
 <h2 style="margin-top:28px">All Twin Details</h2>
-<div class="table-wrap">
-<table>
-<thead>
-<tr>
-<th>Status</th><th>Queue</th><th>Bay Master Seq</th><th>Bay Master Equipment</th><th>Bay Master Yard Position</th><th>Bay Master Vessel Position</th><th>Bay Master Type</th><th>Bay Mirror Seq</th><th>Bay Mirror Equipment</th><th>Bay Mirror Yard Position</th><th>Bay Mirror Vessel Position</th><th>Bay Mirror Type</th><th>Reason</th>
-</tr>
-</thead>
-<tbody id="twinFlowAllTable"></tbody>
-</table>
-</div>
+<div class="table-wrap"><table><thead><tr><th>Status</th><th>Queue</th><th>Bay Master Seq</th><th>Bay Master Equipment</th><th>Bay Master Yard Position</th><th>Bay Master Vessel Position</th><th>Bay Master Type</th><th>Bay Mirror Seq</th><th>Bay Mirror Equipment</th><th>Bay Mirror Yard Position</th><th>Bay Mirror Vessel Position</th><th>Bay Mirror Type</th><th>Reason</th></tr></thead><tbody id="twinFlowAllTable"></tbody></table></div>
 </div>
 
-<div class="copyright-footer">© SPC Tangier _HBO Confidential & Proprietary</div>
+<div id="twinDetails" class="card hidden">
+<div class="detail-card-header"><h2>Twin Planning Details</h2><button class="export-btn-detail" onclick="exportDetailPDF('twinDetails','Twin Planning')">Export Details PDF</button></div>
+<div class="table-wrap"><table><thead><tr><th>Status</th><th>Container 1</th><th>Yard Bay 1</th><th>Move To 1</th><th>Queue 1</th><th>Seq 1</th><th>Container 2</th><th>Yard Bay 2</th><th>Move To 2</th><th>Queue 2</th><th>Seq 2</th></tr></thead><tbody id="twinTable"></tbody></table></div>
+</div>
 
+<div id="alternationDetails" class="card hidden">
+<div class="detail-card-header"><h2>Alternation per Queue</h2><button class="export-btn-detail" onclick="exportDetailPDF('alternationDetails','Alternation')">Export Details PDF</button></div>
+<div class="table-wrap"><table><thead><tr><th>Vessel ID</th><th>Vessel Name</th><th>Queue</th><th>Length</th><th>Ratio</th><th>Moves</th><th>AltCount</th><th>Alternation %</th></tr></thead><tbody id="alternationQueueTable"></tbody></table></div>
+<div class="table-actions" style="margin-top:28px"><h2>Alternation Details</h2><input class="filter-box" type="text" id="alternationQueueSearch" placeholder="Search Queue..." oninput="filterAlternationDetails()"></div>
+<div class="table-wrap"><table><thead><tr><th>Vessel ID</th><th>Queue</th><th>Sequence</th><th>Yard Position</th><th>Yard Bay</th><th>Length</th><th>Compared With</th><th>Alternated?</th></tr></thead><tbody id="alternationDetailTable"></tbody></table></div>
+</div>
+
+<div class="copyright-footer">SPC Tangier - HBO Confidential & Proprietary © 2026</div>
 </div>
 
 <script>
-const DETAILS_IDS=["loadingDetails","rehandlesDetails","rtgDetails","movePerBayDetails","yardClashesDetails","twinFlowDetails"];
-
+const DETAILS_IDS=["loadingDetails","rehandlesDetails","rtgDetails","yardClashesDetails","twinFlowDetails","twinDetails","alternationDetails"];
 const CLASH_DISTANCE_LIMIT = 12;
 const SAME_BAY_MIN_GAP_MINUTES = 2;
 const MIN_COUNTED_CLASH_MOVES = 4;
@@ -311,7 +308,6 @@ if(!file){alert("Please upload the WI file.");return;}
 document.getElementById("status").innerText="Reading file...";
 const name=file.name.toLowerCase();
 const reader=new FileReader();
-
 if(name.endsWith(".xlsx")||name.endsWith(".xls")){
 reader.onload=e=>{
 const data=new Uint8Array(e.target.result);
@@ -345,23 +341,25 @@ const terminal=document.getElementById("terminal").value;
 const ratio20=Number(document.getElementById("ratio20").value);
 const ratio40=Number(document.getElementById("ratio40").value);
 if(ratio20<2||ratio40<2){alert("Alternation ratio must be 2 or above.");return;}
-
+window.latestRTGRows=rows;
 const ops=calculateOperationalSummary(rows);
 const loading=calculateEGPSDLoadingPoints(rows);
 const rehandles=calculateEGPSDRehandles(rows);
 const rtg=calculateEGPSDRTGMovesBeforeGantry(rows);
 const clashes=calculateEGPSDYardClashes(rows);
 const twinFlow=calculateEGPSDTwinYardFlow(rows);
-
+const twin=calculateEGPSDTwinPlanning(rows);
+const alternation=calculateEGPSDAlternation(rows,ratio20,ratio40);
 latestRTGData=rtg;
-
+window.latestKPIExport={rows,ops,loading,rehandles,rtg,clashes,twinFlow,twin,alternation};
 renderOperationalSummary(ops);
 renderLoading(loading);
 renderRehandles(rehandles);
 renderRTG(rtg);
 renderYardClashes(clashes);
 renderTwinFlow(twinFlow);
-
+renderTwin(twin);
+renderAlternation(alternation);
 document.getElementById("summaryCard").classList.remove("hidden");
 DETAILS_IDS.forEach(id=>document.getElementById(id).classList.add("hidden"));
 document.getElementById("status").innerText="Calculation completed successfully for "+terminal+".";
@@ -383,7 +381,6 @@ const moveTimes=validMoveRows.map(r=>Number(getValue(r,["Move Time","Time/Date"]
 let operationsHours=0;
 if(moveTimes.length>0)operationsHours=(Math.max(...moveTimes)-Math.min(...moveTimes))*24;
 const plannedPortHours=operationsHours+1.5;
-
 const craneBuckets={};
 validMoveRows.forEach(r=>{
 const crane=clean(getValue(r,["Pow Name","P.O.W.","P.O.W","POW Name","POW","QC","Crane","Crane ID"]));
@@ -411,10 +408,6 @@ document.getElementById("plannedPortHours").innerText=r.plannedPortHours.toFixed
 document.getElementById("ciPlanned").innerText=r.ciPlanned.toFixed(2);
 document.getElementById("cmph").innerText=r.cmph.toFixed(2);
 }
-
-/* =========================
-   EGPSD COMMON YARD CONFIG
-========================= */
 
 function getLoadFromYardEGPSD(row){
 const moveKind=clean(getValue(row,["Move Kind"]));
@@ -481,10 +474,6 @@ if(moveFrom.substring(2,3)==="M"||moveFrom.substring(0,1)==="3"||moveFrom.substr
 return true;
 }
 
-/* =========================
-   TIME HELPERS
-========================= */
-
 function excelSerialToDate(serial){
 const n=Number(serial);
 if(!isFinite(n)||n===0)return null;
@@ -543,10 +532,6 @@ if(bucketHour===24)bucketHour=0;
 return"+H"+String(bucketHour).padStart(2,"0")+"00";
 }
 
-/* =========================
-   1. LOADING POINTS
-========================= */
-
 function calculateEGPSDLoadingPoints(rows){
 const grouped={};
 rows.forEach(row=>{
@@ -586,10 +571,6 @@ tbody.appendChild(tr);
 });
 }
 
-/* =========================
-   2. REHANDLES
-========================= */
-
 function getRehandleReasonEGPSD(item){
 let reason="Normal";
 if(item.isHazardous)reason="IMO";
@@ -607,7 +588,6 @@ return"Planned";
 }
 
 function calculateEGPSDRehandles(rows){
-const excludedRows=[];
 const validLoads=rows.filter(r=>{
 const moveKind=clean(getValue(r,["Move Kind"]));
 const isOOG=clean(getValue(r,["Unit Is OOG?","Unit is OOG?"])).toUpperCase()==="TRUE";
@@ -616,7 +596,6 @@ const yardPosition=getYardPositionEGPSD(r);
 const rowKey=getYardBlockBayRowEGPSD(r);
 const tier=getYardTierEGPSD(r);
 const valid=moveKind==="Load"&&!isOOG&&loadFromYard==="Yes"&&yardPosition!=="Heap Area"&&yardPosition!=="EC"&&rowKey!=="HP"&&tier!==null&&tier>=1&&tier<=6;
-if(moveKind==="Load"&&!valid)excludedRows.push(r);
 return valid;
 });
 const groups={};
@@ -667,7 +646,6 @@ return{
 loadFromYard:validLoads.length,
 rehandlesCount:rehandlesList.length,
 rehandlesPercent:validLoads.length>0?rehandlesList.length/validLoads.length*100:0,
-excludedCount:excludedRows.length,
 rehandlesList
 };
 }
@@ -683,10 +661,6 @@ tr.innerHTML=`<td>${escapeHtml(r.rowKey)}</td><td>${escapeHtml(r.container)}</td
 tbody.appendChild(tr);
 });
 }
-
-/* =========================
-   3. RTG MOVES BEFORE GANTRY
-========================= */
 
 function midBayNumber(yardBay){
 const s=clean(yardBay);
@@ -780,11 +754,9 @@ result.detailRows.forEach(d=>rtgDetails.push({"Vessel ID":vesselId,"Vessel Name"
 const rtg=allSegments.length?allSegments.reduce((a,b)=>a+b,0)/allSegments.length:0;
 const utilisation=movePerBay?rtg/movePerBay:0;
 const summary=[{
-"Vessel ID":vesselId,
-"Vessel Name":vesselName,
+"Vessel ID":vesselId,"Vessel Name":vesselName,
 "RTG Moves Before Gantry":Number(rtg.toFixed(6)),
 "Move per Bay":Number(movePerBay.toFixed(6)),
-"RTG Picking Efficiency":Number(utilisation.toFixed(6)),
 "RTG Picking Efficiency %":Number((utilisation*100).toFixed(2)),
 "Filtered Load Moves":filtered.length,
 "Visible Yard Bays":bayCounts.length,
@@ -795,18 +767,7 @@ return{summary,bayCounts,rtgDetails,rtg,movePerBay,efficiencyPercent:utilisation
 
 function renderRTG(result){
 document.getElementById("rtgMovesBeforeGantryKPI").innerText=result.rtg.toFixed(2);
-document.getElementById("movePerBayKPI").innerText=result.movePerBay.toFixed(2);
-document.getElementById("rtgEfficiencyKPI").innerText=result.efficiencyPercent.toFixed(2)+"%";
 document.getElementById("rtgObs").innerText="Move per Bay: "+result.movePerBay.toFixed(2)+" | Efficiency: "+result.efficiencyPercent.toFixed(2)+"%";
-document.getElementById("movePerBayObs").innerText="Visible Yard Bays: "+result.visibleYardBays.toLocaleString();
-
-const mpbBody=document.getElementById("movePerBayTable");
-mpbBody.innerHTML="";
-result.bayCounts.forEach(r=>{
-const tr=document.createElement("tr");
-tr.innerHTML=`<td>${escapeHtml(r["Vessel ID"])}</td><td>${escapeHtml(r["Vessel Name"])}</td><td>${escapeHtml(r["Yard  Bay"])}</td><td>${escapeHtml(r["Move per Bay Count"])}</td>`;
-mpbBody.appendChild(tr);
-});
 showRTGDetail("segments");
 }
 
@@ -815,10 +776,6 @@ const table=document.getElementById("rtgDetailTable");
 const rows=type==="summary"?latestRTGData.summary:latestRTGData.rtgDetails;
 renderGenericTable(table,rows);
 }
-
-/* =========================
-   4. YARD CLASHES
-========================= */
 
 function isSpecialBlock(block){
 const prefix=clean(block).substring(0,2);
@@ -984,30 +941,16 @@ totalClashes++;
 details.push({
 systemHour:a.systemHour,
 clashWindow:formatClashWindow(a.start>b.start?a.start:b.start,a.end<b.end?a.end:b.end),
-yardBlock:a.yardBlock,
-pow1:a.pow,
-bay1:a.yardBay,
-moves1:a.moves,
-pow2:b.pow,
-bay2:b.yardBay,
-moves2:b.moves,
-clashMoves,
+yardBlock:a.yardBlock,pow1:a.pow,bay1:a.yardBay,moves1:a.moves,
+pow2:b.pow,bay2:b.yardBay,moves2:b.moves,clashMoves,
 status:counted?"Counted Clash":"Potential Clash",
-containerIds:[...a.containerIds,...b.containerIds].join(", "),
-reason
+containerIds:[...a.containerIds,...b.containerIds].join(", "),reason
 });
 }
 }
 }
 });
-return{
-totalLoadMoves,
-totalClashMoves,
-totalClashes,
-totalPotentialClashes,
-clashPercent:totalLoadMoves>0?totalClashMoves/totalLoadMoves*100:0,
-details
-};
+return{totalLoadMoves,totalClashMoves,totalClashes,totalPotentialClashes,clashPercent:totalLoadMoves>0?totalClashMoves/totalLoadMoves*100:0,details};
 }
 
 function renderYardClashes(result){
@@ -1021,10 +964,6 @@ tr.innerHTML=`<td>${escapeHtml(r.systemHour)}</td><td>${escapeHtml(r.clashWindow
 tbody.appendChild(tr);
 });
 }
-
-/* =========================
-   5. TWIN YARD FLOW ADHERENCE
-========================= */
 
 function toNumber(v){
 const n=Number(clean(v).replace(/'/g,"").replace(/[^0-9.-]/g,""));
@@ -1081,7 +1020,9 @@ const moveKind=getMoveKindTwin(row);
 const length=getLengthTwin(row);
 const oog=upper(getValue(row,["Unit Is OOG?","Unit is OOG?"]));
 const yardPosition=getYardPositionTwin(row);
-return moveKind==="LOAD"&&length==="20'"&&oog!=="TRUE"&&getLoadFromRTGYardTwin(row)==="YES"&&yardPosition!=="HEAP AREA"&&yardPosition!=="EC";
+/* FIX: use .includes("20") instead of ==="20'" so that values like
+   "20", "20FT", "20'" all pass — consistent with Twin Planning filter */
+return moveKind==="LOAD"&&length.includes("20")&&oog!=="TRUE"&&getLoadFromRTGYardTwin(row)==="YES"&&yardPosition!=="HEAP AREA"&&yardPosition!=="EC";
 }
 function parseVesselPosition(pos){
 pos=clean(pos);
@@ -1142,7 +1083,23 @@ const block2=getYardBlockTwin(pos2);
 if(block1===block2)return compareSameBlockFlow(pos1,pos2);
 return compareDifferentBlockFlow(pos1,pos2);
 }
-function twinRowKey(row){return[clean(getValue(row,["Queue"])),clean(getValue(row,["Move Time","Time/Date"]))].join("||");}
+
+/* =============================================================
+   BUG FIX — twinRowKey
+   ---------------------------------------------------------------
+   BEFORE (broken):
+     Groups by Queue + Move Time.
+     Twin containers with different Move Times land in different
+     groups and the inner j-loop never compares them → 0 twins found.
+
+   AFTER (fixed):
+     Groups only by Queue so all containers in the same queue
+     are visible to each other and twins can be correctly paired.
+   ============================================================= */
+function twinRowKey(row){
+  return clean(getValue(row,["Queue"]));
+}
+
 function findTwins(rows){
 const groups={};
 rows.forEach(row=>{
@@ -1176,33 +1133,23 @@ twins.push({first:a,second:found});
 });
 return twins;
 }
-
 function twinDetailObject(twin,result){
 const a=twin.first,b=twin.second;
 return{
 status:result.respected?"Respected":"Not Respected",
 queue:clean(getValue(a,["Queue"])),
-masterSeq:clean(getValue(a,["Sequence"])),
-masterEquipment:getContainer(a),
-masterYard:getYardPositionTwin(a),
-masterVessel:clean(getValue(a,["Planned Position","Move To"])),
-masterType:getContainerTypeTwin(a),
-mirrorSeq:clean(getValue(b,["Sequence"])),
-mirrorEquipment:getContainer(b),
-mirrorYard:getYardPositionTwin(b),
-mirrorVessel:clean(getValue(b,["Planned Position","Move To"])),
-mirrorType:getContainerTypeTwin(b),
+masterSeq:clean(getValue(a,["Sequence"])),masterEquipment:getContainer(a),
+masterYard:getYardPositionTwin(a),masterVessel:clean(getValue(a,["Planned Position","Move To"])),masterType:getContainerTypeTwin(a),
+mirrorSeq:clean(getValue(b,["Sequence"])),mirrorEquipment:getContainer(b),
+mirrorYard:getYardPositionTwin(b),mirrorVessel:clean(getValue(b,["Planned Position","Move To"])),mirrorType:getContainerTypeTwin(b),
 reason:result.reason
 };
 }
-
 function calculateEGPSDTwinYardFlow(rows){
 const scoped=rows.filter(isValidTwinScope);
 const twins=findTwins(scoped);
-const allDetails=[];
-const badDetails=[];
-let respecting=0;
-let notRespecting=0;
+const allDetails=[],badDetails=[];
+let respecting=0,notRespecting=0;
 twins.forEach(twin=>{
 const result=validateYardFlow(twin.first,twin.second);
 if(result.respected)respecting++;else notRespecting++;
@@ -1210,23 +1157,12 @@ const d=twinDetailObject(twin,result);
 allDetails.push(d);
 if(!result.respected)badDetails.push(d);
 });
-return{
-totalTwins:twins.length,
-respecting,
-notRespecting,
-adherence:twins.length?respecting/twins.length*100:0,
-allDetails,
-badDetails
-};
+return{totalTwins:twins.length,respecting,notRespecting,adherence:twins.length?respecting/twins.length*100:0,allDetails,badDetails};
 }
-
 function renderTwinFlow(result){
 document.getElementById("twinFlowKPI").innerText=result.adherence.toFixed(2)+"%";
 document.getElementById("twinFlowObs").innerText="Total Twins: "+result.totalTwins.toLocaleString()+" | Not Respecting: "+result.notRespecting.toLocaleString();
-renderTwinFlowRows(document.getElementById("twinFlowBadTable"),result.badDetails);
-renderTwinFlowRows(document.getElementById("twinFlowAllTable"),result.allDetails);
-}
-function renderTwinFlowRows(tbody,rows){
+function fillRows(tbody,rows){
 tbody.innerHTML="";
 rows.forEach(r=>{
 const tr=document.createElement("tr");
@@ -1234,55 +1170,224 @@ tr.innerHTML=`<td class="${r.status==="Respected"?"good":"bad"}">${escapeHtml(r.
 tbody.appendChild(tr);
 });
 }
-
-/* =========================
-   GENERIC RENDER / EXPORT
-========================= */
+fillRows(document.getElementById("twinFlowBadTable"),result.badDetails);
+fillRows(document.getElementById("twinFlowAllTable"),result.allDetails);
+}
 
 function renderGenericTable(table,rows){
-if(!rows||!rows.length){
-table.innerHTML="<tbody><tr><td>No data</td></tr></tbody>";
-return;
-}
+if(!rows||!rows.length){table.innerHTML="<tbody><tr><td>No data</td></tr></tbody>";return;}
 const cols=Object.keys(rows[0]);
 table.innerHTML=`<thead><tr>${cols.map(c=>`<th>${escapeHtml(c)}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td>${escapeHtml(r[c])}</td>`).join("")}</tr>`).join("")}</tbody>`;
 }
 
-function getExportFileName(){
-const rows=window.latestRows||[];
-const carrier=clean(rows[0]?.["Carrier"])||"RTG";
-const vessel=clean(rows[0]?.["Carrier Name"])||"KPI";
-return (carrier+" - "+vessel+" RTG KPIs.pdf").replace(/[\\/:*?"<>|]/g,"_");
+/* ===== TWIN PLANNING ===== */
+function calculateEGPSDTwinPlanning(rows){
+const eligible=rows.filter(row=>{
+const len=normalize(row["Length"]);
+const oog=boolVal(getValue(row,["Unit Is OOG?","Unit is OOG?"]));
+return normalize(row["Move Kind"])==="Load"&&len.includes("20")&&!oog&&isValidYardPositionEGPSD(row);
+});
+const candidates=[];
+for(let i=0;i<eligible.length;i++){
+for(let j=i+1;j<eligible.length;j++){
+const mf1=clean(getValue(eligible[i],["Move From"])).toUpperCase().substring(0,5);
+const mf2=clean(getValue(eligible[j],["Move From"])).toUpperCase().substring(0,5);
+if(mf1.substring(0,3)!==mf2.substring(0,3))continue;
+const diff=Math.abs(parseInt(mf1.substring(3,5),10)-parseInt(mf2.substring(3,5),10));
+if(diff!==0&&diff!==2)continue;
+const w1=getNumber(getValue(eligible[i],["Unit Weight (kg)"]));
+const w2=getNumber(getValue(eligible[j],["Unit Weight (kg)"]));
+if(w1>0&&w2>0&&Math.abs(w1-w2)>12)continue;
+const p1=parseVesselPosition(clean(getValue(eligible[i],["Move To","Planned Position"])));
+const p2=parseVesselPosition(clean(getValue(eligible[j],["Move To","Planned Position"])));
+const planned=p1&&p2&&normalize(eligible[i]["Queue"])===normalize(eligible[j]["Queue"])&&Math.abs(p1.bay-p2.bay)===2&&p1.row===p2.row&&p1.tier===p2.tier;
+const seqDiff=Math.abs((Number(eligible[i]["Sequence"])||0)-(Number(eligible[j]["Sequence"])||0));
+candidates.push({i,j,planned:!!planned,seqDiff});
+}
+}
+candidates.sort((a,b)=>a.planned!==b.planned?(a.planned?-1:1):a.seqDiff-b.seqDiff);
+const used=new Set();const pairs=[];
+for(const c of candidates){
+if(used.has(c.i)||used.has(c.j))continue;
+used.add(c.i);used.add(c.j);
+pairs.push({row1:eligible[c.i],row2:eligible[c.j],planned:c.planned});
+}
+const opportunityPairs=pairs.length;const plannedPairs=pairs.filter(p=>p.planned).length;
+return{opportunityPairs,plannedPairs,twinPct:opportunityPairs>0?plannedPairs/opportunityPairs*100:0,details:pairs};
+}
+function renderTwin(r){
+document.getElementById("twinKPI").innerText=r.twinPct.toFixed(2)+"%";
+document.getElementById("twinObs").innerText=`Opportunities: ${r.opportunityPairs} Pairs | Planned: ${r.plannedPairs} Pairs`;
+const tbody=document.getElementById("twinTable");tbody.innerHTML="";
+const planned=r.details.filter(p=>p.planned);const missed=r.details.filter(p=>!p.planned);
+function addSec(title,items,cls){
+if(!items.length)return;
+const sep=document.createElement("tr");sep.innerHTML=`<td colspan="11" class="twins-separator">${title}</td>`;tbody.appendChild(sep);
+items.forEach(p=>{
+const tr=document.createElement("tr");
+const bay1=clean(getValue(p.row1,["Move From"])).toUpperCase().substring(0,5);
+const bay2=clean(getValue(p.row2,["Move From"])).toUpperCase().substring(0,5);
+tr.innerHTML=`<td class="${cls}">${p.planned?"Planned Twin":"Missed Twin"}</td><td>${escapeHtml(getContainer(p.row1))}</td><td>${escapeHtml(bay1)}</td><td>${escapeHtml(clean(getValue(p.row1,["Move To","Planned Position"])))}</td><td>${escapeHtml(p.row1["Queue"])}</td><td>${escapeHtml(p.row1["Sequence"])}</td><td>${escapeHtml(getContainer(p.row2))}</td><td>${escapeHtml(bay2)}</td><td>${escapeHtml(clean(getValue(p.row2,["Move To","Planned Position"])))}</td><td>${escapeHtml(p.row2["Queue"])}</td><td>${escapeHtml(p.row2["Sequence"])}</td>`;
+tbody.appendChild(tr);
+});
+}
+addSec("PLANNED TWINS",planned,"good");
+addSec("MISSED TWINS",missed,"bad");
 }
 
+/* ===== ALTERNATION ===== */
+function normalizeAltLength(len){len=normalize(len);if(len==="45'")return"40'";return len;}
+function checkAlt40(values,index,ratio){
+const current=values[index];let compared=[];
+for(let step=1;step<ratio;step++){const next=values[index+step];if(next===undefined)continue;compared.push(next);if(current===next)return{alternated:false,compared};}
+return{alternated:true,compared};
+}
+function checkAlt20(values,index,ratio){
+const current=values[index];let compared=[];
+for(let step=1;step<ratio;step++){const next=values[index+(step*2)];if(next===undefined)continue;compared.push(next);if(current===next)return{alternated:false,compared};}
+return{alternated:true,compared};
+}
+function calcGroupAlt(rows,ratio,is20){
+rows.sort((a,b)=>a._Seq-b._Seq);
+if(rows.length===1){rows[0]._ComparedWith="Single container queue";rows[0]._Alternated=true;return 1;}
+if(is20&&rows.length===2){rows.forEach(r=>{r._ComparedWith="20ft queue with 2 containers";r._Alternated=true;});return 2;}
+const yardRows=rows.map(r=>r._YardBay);let count=0;
+rows.forEach((row,index)=>{
+const result=is20?checkAlt20(yardRows,index,ratio):checkAlt40(yardRows,index,ratio);
+row._ComparedWith=result.compared.join(" / ");
+row._Alternated=result.compared.length>0&&result.alternated;
+if(row._Alternated)count++;
+});
+return count;
+}
+function calculateEGPSDAlternation(rows,ratio20,ratio40){
+const prepared=[];
+rows.forEach(row=>{
+if(normalize(row["Move Kind"])!=="Load")return;
+const validYard=isValidYardPositionEGPSD(row);
+const mf=clean(getValue(row,["Move From"])).toUpperCase();
+const yardBay=validYard?mf.substring(0,5):"HP";
+const seq=Number(clean(row["Sequence"]));
+const len=normalizeAltLength(row["Length"]);
+const vbdl=normalize(row["Queue"]).substring(0,3)+" "+len;
+prepared.push({...row,_YardPosition:mf,_YardBay:yardBay,_LoadFromYard:validYard?"Yes":"No",_Seq:seq,_Length:len,_VBDL:vbdl,_Alternated:false,_ComparedWith:""});
+});
+const validRows=prepared.filter(r=>r._LoadFromYard==="Yes"&&!isNaN(r._Seq)&&(r._Length.includes("20")||r._Length.includes("40")));
+const groups={};
+validRows.forEach(row=>{
+const key=clean(row["Carrier"])+"|"+clean(row["Carrier Name"])+"|"+row._VBDL.trim();
+if(!groups[key])groups[key]={vessel:clean(row["Carrier"]),vesselName:clean(row["Carrier Name"]),queue:row._VBDL.trim(),length:row._Length,rows:[]};
+groups[key].rows.push(row);
+});
+let totalAlt40=0,totalAlt20=0,queueRows=[];
+Object.values(groups).forEach(g=>{
+const is40=g.length.includes("40");const is20=g.length.includes("20");const ratio=is40?ratio40:ratio20;
+const altCount=calcGroupAlt(g.rows,ratio,is20);
+if(is40)totalAlt40+=altCount;if(is20)totalAlt20+=altCount;
+queueRows.push({vessel:g.vessel,vesselName:g.vesselName,queue:g.queue,length:g.length,ratio,moves:g.rows.length,altCount,pct:g.rows.length?altCount/g.rows.length:0});
+});
+const loadFromYard=validRows.length,totalAlt=totalAlt40+totalAlt20;
+validRows.sort((a,b)=>{const qa=a._VBDL.trim(),qb=b._VBDL.trim();if(qa!==qb)return qa.localeCompare(qb);return a._Seq-b._Seq;});
+return{loadFromYard,totalAlt,totalAlt40,totalAlt20,alternationPct:loadFromYard?totalAlt/loadFromYard*100:0,queueRows,detailRows:validRows};
+}
+function renderAlternation(r){
+document.getElementById("alternationKPI").innerText=r.alternationPct.toFixed(2)+"%";
+document.getElementById("alternationObs").innerText="Load from Yard: "+r.loadFromYard.toLocaleString()+" | AltCount: "+r.totalAlt.toLocaleString()+" | 40': "+r.totalAlt40.toLocaleString()+" | 20': "+r.totalAlt20.toLocaleString();
+window.latestAltRows=r.detailRows||[];
+document.getElementById("alternationQueueSearch").value="";
+const qBody=document.getElementById("alternationQueueTable");qBody.innerHTML="";
+[...r.queueRows].sort((a,b)=>a.pct-b.pct).forEach(row=>{
+const pct=row.pct*100;const tr=document.createElement("tr");
+tr.innerHTML=`<td>${escapeHtml(row.vessel)}</td><td>${escapeHtml(row.vesselName)}</td><td>${escapeHtml(row.queue)}</td><td>${escapeHtml(row.length)}</td><td>${row.ratio}</td><td>${row.moves}</td><td>${row.altCount}</td><td>${pct.toFixed(2)}%</td>`;
+qBody.appendChild(tr);
+});
+renderAltDetails(window.latestAltRows);
+}
+function renderAltDetails(rows){
+const tbody=document.getElementById("alternationDetailTable");tbody.innerHTML="";
+rows.forEach(r=>{
+const tr=document.createElement("tr");
+tr.innerHTML=`<td>${escapeHtml(r["Carrier"])}</td><td>${escapeHtml(r._VBDL)}</td><td>${escapeHtml(r["Sequence"])}</td><td>${escapeHtml(r._YardPosition)}</td><td>${escapeHtml(r._YardBay)}</td><td>${escapeHtml(r._Length)}</td><td>${escapeHtml(r._ComparedWith)}</td><td class="${r._Alternated?"good":"bad"}">${r._Alternated?"Yes":"No"}</td>`;
+tbody.appendChild(tr);
+});
+}
+function filterAlternationDetails(){
+const q=normalize(document.getElementById("alternationQueueSearch").value).toLowerCase();
+const rows=(window.latestAltRows||[]).filter(r=>!q||normalize(r._VBDL).toLowerCase().includes(q));
+renderAltDetails(rows);
+}
+
+/* ===== EXPORT ===== */
+function getExportFileName(ext){
+const rows=window.latestRTGRows||[];
+const carrier=normalize(rows[0]?.["Carrier"]||"Vessel");
+const carrierName=normalize(rows[0]?.["Carrier Name"]||"RTG");
+return(carrier+" - "+carrierName+" RTG KPIs."+ext).replace(/[\\/:*?"<>|]/g,"-");
+}
 async function exportKPIReport(){
-const summary=document.getElementById("summaryCard");
-if(summary.classList.contains("hidden")){
-alert("Please calculate KPIs before exporting.");
-return;
+const data=window.latestKPIExport;if(!data){alert("Please calculate KPIs first.");return;}
+const oldExport=document.getElementById("exportContainer");if(oldExport)oldExport.remove();
+const page=document.querySelector(".page");
+const header=document.querySelector(".header").cloneNode(true);
+const summary=document.getElementById("summaryCard").cloneNode(true);
+summary.classList.remove("hidden");summary.classList.add("export-clean");summary.querySelectorAll("button").forEach(btn=>btn.remove());
+const exportContainer=document.createElement("div");
+exportContainer.id="exportContainer";exportContainer.className="export-clean";
+exportContainer.style.cssText="position:fixed;left:-10000px;top:0;width:"+page.offsetWidth+"px;background:#ffffff;padding:20px;box-sizing:border-box;";
+header.style.marginBottom="24px";summary.style.marginBottom="0";
+exportContainer.appendChild(header);exportContainer.appendChild(summary);
+const ftr=document.createElement("div");
+ftr.textContent="© SPC Tangier _HBO Confidential & Proprietary";
+ftr.style.cssText="margin-top:18px;padding-top:12px;border-top:1px solid #dbe4ea;font-size:11px;font-weight:700;color:#64748b;text-align:center;letter-spacing:.4px;";
+exportContainer.appendChild(ftr);document.body.appendChild(exportContainer);
+try{
+const canvas=await html2canvas(exportContainer,{backgroundColor:"#ffffff",scale:2,useCORS:true,logging:false,windowWidth:exportContainer.scrollWidth,windowHeight:exportContainer.scrollHeight});
+const imgData=canvas.toDataURL("image/png");const{jsPDF}=window.jspdf;
+const pdf=new jsPDF({orientation:"landscape",unit:"pt",format:"a4"});
+const pageW=pdf.internal.pageSize.getWidth();const pageH=pdf.internal.pageSize.getHeight();
+const margin=22;const maxW=pageW-margin*2;const maxH=pageH-margin*2;
+const ratio=Math.min(maxW/canvas.width,maxH/canvas.height);
+pdf.addImage(imgData,"PNG",(pageW-canvas.width*ratio)/2,margin,canvas.width*ratio,canvas.height*ratio);
+pdf.save(getExportFileName("pdf"));
+}catch(err){alert("PDF export failed.");console.error(err);}
+finally{exportContainer.remove();}
 }
-const page=document.getElementById("reportPage");
-page.classList.add("export-clean");
-const canvas=await html2canvas(page,{scale:2,useCORS:true,backgroundColor:"#ffffff"});
-page.classList.remove("export-clean");
-const imgData=canvas.toDataURL("image/png");
-const { jsPDF }=window.jspdf;
-const pdf=new jsPDF("p","mm","a4");
-const pageWidth=210;
-const pageHeight=297;
-const imgWidth=pageWidth;
-const imgHeight=canvas.height*imgWidth/canvas.width;
-let heightLeft=imgHeight;
-let position=0;
-pdf.addImage(imgData,"PNG",0,position,imgWidth,imgHeight);
-heightLeft-=pageHeight;
-while(heightLeft>0){
-position=heightLeft-imgHeight;
-pdf.addPage();
-pdf.addImage(imgData,"PNG",0,position,imgWidth,imgHeight);
-heightLeft-=pageHeight;
+async function exportDetailPDF(cardId,kpiLabel){
+const rows=window.latestRTGRows||[];
+const carrier=normalize(rows[0]?.["Carrier"]||"Vessel");
+const carrierName=normalize(rows[0]?.["Carrier Name"]||"RTG");
+const safeName=(carrier+" - "+carrierName+" - "+kpiLabel+" Details.pdf").replace(/[\\/:*?"<>|]/g,"-");
+const card=document.getElementById(cardId);if(!card){alert("Detail card not found.");return;}
+const clone=card.cloneNode(true);clone.querySelectorAll(".export-btn-detail").forEach(b=>b.style.display="none");
+const container=document.createElement("div");
+container.style.cssText="position:fixed;left:-12000px;top:0;background:#fff;padding:28px 24px;box-sizing:border-box;width:1200px;font-family:Segoe UI,Arial,sans-serif;color:#0f172a;";
+const hdr=document.createElement("div");
+hdr.style.cssText="background:linear-gradient(135deg,#002f4b,#006b8f);color:white;padding:18px 22px;border-radius:14px;margin-bottom:18px;";
+hdr.innerHTML="<div style='font-size:18px;font-weight:800;margin-bottom:4px;'>SPC-RTG KPI Calculator</div><div style='font-size:13px;opacity:.8;'>"+carrier+" | "+carrierName+" | "+kpiLabel+" Details</div>";
+const ftr=document.createElement("div");
+ftr.style.cssText="margin-top:18px;padding-top:12px;border-top:1px solid #dbe4ea;font-size:11px;font-weight:700;color:#64748b;text-align:center;";
+ftr.textContent="SPC Tangier - HBO Confidential & Proprietary © 2026";
+container.appendChild(hdr);container.appendChild(clone);container.appendChild(ftr);document.body.appendChild(container);
+try{
+const canvas=await html2canvas(container,{backgroundColor:"#ffffff",scale:2,useCORS:true,logging:false,windowWidth:container.scrollWidth,windowHeight:container.scrollHeight});
+const imgData=canvas.toDataURL("image/png");const{jsPDF}=window.jspdf;
+const landscape=canvas.width>canvas.height;
+const pdf=new jsPDF({orientation:landscape?"landscape":"portrait",unit:"pt",format:"a4"});
+const pageW=pdf.internal.pageSize.getWidth();const pageH=pdf.internal.pageSize.getHeight();
+const margin=20;const ratio=Math.min((pageW-margin*2)/canvas.width,(pageH-margin*2)/canvas.height);
+const imgW=canvas.width*ratio;
+let yOffset=0;let firstPage=true;
+while(yOffset<canvas.height){
+if(!firstPage)pdf.addPage();firstPage=false;
+const sliceH=Math.min((pageH-margin*2)/ratio,canvas.height-yOffset);
+const sc=document.createElement("canvas");sc.width=canvas.width;sc.height=sliceH;
+sc.getContext("2d").drawImage(canvas,0,-yOffset);
+pdf.addImage(sc.toDataURL("image/png"),"PNG",margin,margin,imgW,sliceH*ratio);
+yOffset+=sliceH;
 }
-pdf.save(getExportFileName());
+pdf.save(safeName);
+}catch(err){alert("Detail PDF export failed.");console.error(err);}
+finally{container.remove();}
 }
 </script>
 </body>
