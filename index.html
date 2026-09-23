@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>SPC-RTG KPI Calculator</title>
+<title>SPC-RTG Planning KPI Calculator</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <style>
 * { -webkit-user-select:none; -moz-user-select:none; -ms-user-select:none; user-select:none; }
 input,textarea,select { -webkit-user-select:text; -moz-user-select:text; user-select:text; }
-body{margin:0;font-family:Segoe UI,Arial,sans-serif;background:radial-gradient(circle at top left,#dff3f8 0,#eef5f8 36%,#f8fbfd 100%);color:#0f172a}
+body{margin:0;padding-top:70px;font-family:Segoe UI,Arial,sans-serif;background:radial-gradient(circle at top left,#dff3f8 0,#eef5f8 36%,#f8fbfd 100%);color:#0f172a}
 .page{max-width:1450px;margin:35px auto;padding:20px}
 .header{position:relative;overflow:hidden;background:linear-gradient(135deg,#002f4b 0%,#006b8f 55%,#00a3ad 100%);color:white;padding:34px;border-radius:24px;margin-bottom:24px;box-shadow:0 16px 34px rgba(0,59,92,.22)}
 .header:before{content:"";position:absolute;right:-70px;top:-80px;width:310px;height:310px;border-radius:50%;background:rgba(255,255,255,.12)}
@@ -19,25 +19,39 @@ body{margin:0;font-family:Segoe UI,Arial,sans-serif;background:radial-gradient(c
 .header-tags{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
 .header-tag{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:7px 12px;font-size:12px;font-weight:800;color:#fff}
 .card{background:white;padding:24px;border-radius:20px;margin-bottom:24px;box-shadow:0 8px 24px rgba(0,0,0,.08)}
-.controls{display:grid;grid-template-columns:minmax(260px,1fr) 130px 135px 135px 150px 150px;gap:16px;align-items:end}
+.controls{display:grid;grid-template-columns:minmax(220px,1fr) 150px 110px 120px 110px 110px 150px 150px;gap:16px;align-items:end}
 .controls>div{min-width:0}
+.control-upload{grid-column:1}
+.control-terminal{grid-column:2}
+#ratio20Control{grid-column:3}
+#ratio40Control{grid-column:4}
+.control-calculate{grid-column:7}
+.control-export{grid-column:8}
 label{font-weight:700;font-size:14px;display:block;margin-bottom:8px}
 input,select,button{width:100%;box-sizing:border-box;padding:12px;border-radius:12px;border:1px solid #d1d5db;font-size:14px}
 button{background:#ff6b00;color:white;border:none;font-weight:800;cursor:pointer}
 button:hover{background:#e85f00}
+button:disabled{background:#cbd5e1;cursor:not-allowed}
 .export-btn{background:#00a3ad}
 .export-btn:hover{background:#007f88}
 .status{margin-top:12px;font-weight:700;color:#475569}
+.terminal-note{margin-top:8px;font-size:12px;color:#64748b;font-weight:600}
 .ops-grid{display:flex;flex-direction:column;gap:26px;margin-bottom:24px}
 .ops-row{display:grid;gap:14px}
 .ops-row.moves-row{grid-template-columns:repeat(4,minmax(170px,1fr))}
 .ops-row.operation-row{grid-template-columns:repeat(3,minmax(0,1fr));width:calc(75% - 7px);margin:0 auto}
 .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;align-items:stretch}
 .metric,.ops-metric{background:#f8fafc;border:1px solid #e5e7eb;border-radius:16px;padding:18px}
+.metric{display:flex;flex-direction:column}
+.metric.disabled{opacity:.55}
 .ops-metric{background:linear-gradient(135deg,#f8fafc,#eef7fb);border-left:5px solid #ff6b00}
 .metric-title,.ops-title{color:#64748b;font-weight:700;font-size:13px}
+.metric-title{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:18px}
+.metric-target{font-size:11px;font-weight:800;white-space:nowrap;color:#475569}
 .metric-value,.ops-value{font-size:30px;font-weight:900;color:#003b5c;margin-top:8px}
 .small-note{color:#64748b;font-size:13px;margin-top:6px}
+.metric .small-note{margin-bottom:14px}
+.metric .details-btn{margin-top:auto}
 .details-btn{margin-top:14px;background:#003b5c}
 .details-btn:hover{background:#002b43}
 .hidden{display:none}
@@ -49,6 +63,9 @@ tr:hover{background:#f8fafc}
 .good{color:#15803d;font-weight:900}
 .bad{color:#b91c1c;font-weight:900}
 .warn{color:#ca8a04;font-weight:900}
+.target-good{color:#15803d!important}
+.target-bad{color:#b91c1c!important}
+.target-equal{color:#ca8a04!important}
 .section-title{display:flex;justify-content:space-between;align-items:center;gap:12px}
 .table-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .details-tab{width:auto;padding:10px 14px;background:#0077a3}
@@ -56,14 +73,192 @@ tr:hover{background:#f8fafc}
 .twins-separator{background:#003b5c!important;color:white!important;font-size:15px;font-weight:800;text-align:center}
 .detail-card-header{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:4px}
 .detail-card-header h2{margin:0}
-.export-btn-detail{background:#00a3ad;color:white;border:none;border-radius:10px;padding:9px 18px;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap;width:auto}
-.export-btn-detail:hover{background:#007f88}
+.detail-card-header .button-group{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.export-detail-btn{background:#00a3ad;color:white;border:none;border-radius:10px;padding:9px 18px;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap;width:auto}
+.export-detail-btn:hover{background:#007f88}
 .filter-box{max-width:280px;margin:10px 0 0 0}
 .copyright-footer{width:100%;text-align:center;padding:18px 10px;margin-top:30px;font-size:12px;font-weight:700;letter-spacing:1px;color:#64748b;border-top:1px solid #dbe4ea}
 .export-clean .details-btn,.export-clean .export-btn,.export-clean .controls-card{display:none!important}
 .export-clean{background:#fff!important}
-@media(max-width:1200px){.controls{grid-template-columns:1fr 1fr}.kpi-grid{grid-template-columns:repeat(2,1fr)}.ops-row.moves-row,.ops-row.operation-row{grid-template-columns:repeat(2,1fr);width:100%}}
+@media(max-width:1200px){.controls{grid-template-columns:1fr 1fr}.controls>div{grid-column:auto}.kpi-grid{grid-template-columns:repeat(2,1fr)}.ops-row.moves-row,.ops-row.operation-row{grid-template-columns:repeat(2,1fr);width:100%}}
 @media(max-width:700px){.controls,.kpi-grid,.ops-row.moves-row,.ops-row.operation-row{grid-template-columns:1fr;width:100%}}
+.tos-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 90% at 50% 0%, #123049 0%, #0b1d2e 45%, #06121d 100%);
+  --tos-amber: #ffb020;
+  --tos-teal: #2ec5b6;
+  --tos-line: rgba(120, 190, 230, 0.14);
+}
+.tos-bg__water {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 34%;
+  background: linear-gradient(180deg, #0a2135 0%, #071824 100%);
+  box-shadow: inset 0 1px 0 rgba(150, 210, 240, 0.18);
+}
+.tos-bg__water::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(180deg, rgba(160, 220, 250, 0.07) 0px, rgba(160, 220, 250, 0.07) 1px, transparent 1px, transparent 9px);
+  animation: tos-swell 9s ease-in-out infinite alternate;
+}
+@keyframes tos-swell {
+  from { transform: translateY(0); opacity: 0.7; }
+  to { transform: translateY(4px); opacity: 1; }
+}
+.tos-bg__grid {
+  position: absolute;
+  left: -25%;
+  right: -25%;
+  bottom: 26%;
+  height: 46%;
+  background-image: linear-gradient(to right, var(--tos-line) 1px, transparent 1px), linear-gradient(to bottom, var(--tos-line) 1px, transparent 1px);
+  background-size: 92px 46px;
+  transform: perspective(520px) rotateX(66deg);
+  transform-origin: bottom center;
+  mask-image: linear-gradient(to top, #000 10%, transparent 85%);
+}
+.tos-bg__cranes {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 30%;
+  height: 42%;
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-end;
+  opacity: 0.55;
+}
+.tos-crane {
+  position: relative;
+  width: 200px;
+  height: 100%;
+  color: #8fb9d6;
+}
+.tos-crane__boom,
+.tos-crane__leg,
+.tos-crane__beam,
+.tos-crane__hoist {
+  position: absolute;
+  background: currentColor;
+}
+.tos-crane__boom { top: 8%; left: -12%; width: 124%; height: 6px; border-radius: 3px; }
+.tos-crane__beam { top: 22%; left: 8%; width: 84%; height: 4px; opacity: 0.7; }
+.tos-crane__leg { top: 8%; width: 5px; height: 92%; opacity: 0.85; }
+.tos-crane__leg--a { left: 18%; }
+.tos-crane__leg--b { left: 74%; }
+.tos-crane__hoist {
+  top: 8%;
+  width: 3px;
+  height: 34%;
+  left: 40%;
+  opacity: 0.9;
+  animation: tos-hoist 7s ease-in-out infinite;
+}
+.tos-crane__hoist::after {
+  content: "";
+  position: absolute;
+  bottom: -14px;
+  left: -13px;
+  width: 30px;
+  height: 14px;
+  background: var(--tos-amber);
+  border-radius: 2px;
+  box-shadow: 0 0 18px rgba(255, 176, 32, 0.45);
+}
+@keyframes tos-hoist {
+  0%, 100% { height: 26%; left: 34%; }
+  45% { height: 62%; left: 34%; }
+  55% { height: 62%; left: 66%; }
+  90% { height: 26%; left: 66%; }
+}
+.tos-crane--mid { transform: scale(0.82) translateY(4%); opacity: 0.8; }
+.tos-crane--far { transform: scale(0.64) translateY(8%); opacity: 0.55; }
+.tos-crane--mid .tos-crane__hoist { animation-duration: 9s; animation-delay: -3s; }
+.tos-crane--far .tos-crane__hoist { animation-duration: 11s; animation-delay: -6s; }
+.tos-bg__vessel {
+  position: absolute;
+  bottom: 27%;
+  left: -30%;
+  width: 460px;
+  height: 74px;
+  animation: tos-sail 60s linear infinite;
+  opacity: 0.9;
+}
+.tos-vessel__hull {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 30px;
+  background: #14324a;
+  border-top: 2px solid rgba(150, 210, 240, 0.35);
+  border-radius: 4px 26px 8px 4px;
+}
+.tos-vessel__stack {
+  position: absolute;
+  bottom: 30px;
+  left: 6%;
+  right: 22%;
+  height: 44px;
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+}
+.tos-vessel__stack span {
+  flex: 1;
+  border-radius: 1px;
+  background: var(--tos-teal);
+  opacity: 0.75;
+}
+.tos-vessel__stack span:nth-child(3n) { background: var(--tos-amber); height: 78%; }
+.tos-vessel__stack span:nth-child(3n+1) { height: 100%; }
+.tos-vessel__stack span:nth-child(3n+2) { height: 58%; background: #4f9ecf; }
+.tos-vessel__bridge {
+  position: absolute;
+  bottom: 30px;
+  right: 8%;
+  width: 46px;
+  height: 34px;
+  background: #1d4260;
+  border-radius: 3px 3px 0 0;
+}
+@keyframes tos-sail {
+  from { transform: translateX(0); }
+  to { transform: translateX(calc(100vw + 40%)); }
+}
+.tos-bg__lights {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 30%;
+  height: 2px;
+  background: repeating-linear-gradient(to right, rgba(255, 176, 32, 0.75) 0 3px, transparent 3px 84px);
+  filter: drop-shadow(0 0 6px rgba(255, 176, 32, 0.6));
+}
+.tos-bg__haze {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(60% 40% at 20% 85%, rgba(46, 197, 182, 0.12), transparent 70%), radial-gradient(50% 40% at 80% 80%, rgba(255, 176, 32, 0.1), transparent 70%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tos-bg *, .tos-bg *::after { animation: none !important; }
+}
+.tos-brand{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;align-items:center;gap:18px;padding:8px 22px;background:rgba(6,18,29,.72);border-bottom:1px solid rgba(150,210,240,.18);backdrop-filter:blur(8px);font:600 15px/1 system-ui,"Segoe UI",sans-serif;color:#e6f2fa;min-height:70px}
+.tos-logo{display:flex;align-items:center;gap:12px;white-space:nowrap}
+.tos-logo svg{display:block}
+.tos-logo__name{letter-spacing:.02em;font-size:16px;font-weight:800;color:#fff}
+.tos-logo__name small{display:block;font-size:10px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#a8c5d1;margin-top:2px}
+.tos-brand__rule{width:1px;align-self:stretch;background:rgba(150,210,240,.25)}
+.tos-brand__spacer{flex:1}
 </style>
 </head>
 <body>
@@ -118,11 +313,72 @@ tr:hover{background:#f8fafc}
 })();
 </script>
 
+<div class="tos-bg" aria-hidden="true">
+  <div class="tos-bg__grid"></div>
+
+  <div class="tos-bg__cranes">
+    <div class="tos-crane tos-crane--far">
+      <div class="tos-crane__boom"></div>
+      <div class="tos-crane__beam"></div>
+      <div class="tos-crane__leg tos-crane__leg--a"></div>
+      <div class="tos-crane__leg tos-crane__leg--b"></div>
+      <div class="tos-crane__hoist"></div>
+    </div>
+    <div class="tos-crane">
+      <div class="tos-crane__boom"></div>
+      <div class="tos-crane__beam"></div>
+      <div class="tos-crane__leg tos-crane__leg--a"></div>
+      <div class="tos-crane__leg tos-crane__leg--b"></div>
+      <div class="tos-crane__hoist"></div>
+    </div>
+    <div class="tos-crane tos-crane--mid">
+      <div class="tos-crane__boom"></div>
+      <div class="tos-crane__beam"></div>
+      <div class="tos-crane__leg tos-crane__leg--a"></div>
+      <div class="tos-crane__leg tos-crane__leg--b"></div>
+      <div class="tos-crane__hoist"></div>
+    </div>
+  </div>
+
+  <div class="tos-bg__lights"></div>
+
+  <div class="tos-bg__vessel">
+    <div class="tos-vessel__stack">
+      <span></span><span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <div class="tos-vessel__bridge"></div>
+    <div class="tos-vessel__hull"></div>
+  </div>
+
+  <div class="tos-bg__water"></div>
+  <div class="tos-bg__haze"></div>
+</div>
+
+<!-- BRAND BAR -->
+<header class="tos-brand">
+  <span class="tos-logo">
+    <svg width="45" height="32" viewBox="0 0 180 128" xmlns="http://www.w3.org/2000/svg">
+      <polygon points="30,25 150,8 160,20 40,37" fill="#FF6B35"/>
+      <polygon points="55,50 125,35 135,47 65,62" fill="#FF6B35"/>
+      <polygon points="20,75 80,65 90,77 30,87" fill="#FF6B35"/>
+    </svg>
+    <span class="tos-logo__name">APM Terminals<small>Lifting Global Trade</small></span>
+  </span>
+  <span class="tos-brand__rule"></span>
+  <span class="tos-logo">
+    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 512 512" role="img" aria-labelledby="title desc"><title id="title">Maersk seven-point star</title><rect x="48" y="48" width="416" height="416" rx="72" fill="#42B0D5"/><polygon points="256.00,84.00 284.64,196.54 390.48,148.76 320.35,241.31 423.69,294.27 307.60,297.15 330.63,410.97 256.00,322.00 181.37,410.97 204.40,297.15 88.31,294.27 191.65,241.31 121.52,148.76 227.36,196.54" fill="#FFFFFF"/></svg>
+    <span class="tos-logo__name">MAERSK<small>Integrated Logistics</small></span>
+  </span>
+  <span class="tos-brand__spacer"></span>
+</header>
+
 <div class="page" id="reportPage">
 
 <div class="header">
-<h1>SPC-RTG KPI Calculator</h1>
-<p>Terminal operations, RTG yard flow, crane interaction, and planning KPI analytics</p>
+<h1>SPC-RTG Planning KPI Calculator</h1>
+<p>Terminal Operations, yard flow and planning KPI analytics For RTG Terminals</p>
 <div class="header-tags">
 <span class="header-tag">RTG OPS</span>
 <span class="header-tag">YARD FLOW</span>
@@ -132,14 +388,25 @@ tr:hover{background:#f8fafc}
 
 <div class="card controls-card">
 <div class="controls">
-<div><label>Upload Work Instruction File</label><input type="file" id="fileInput" accept=".txt,.csv,.xlsx,.xls"></div>
-<div><label>Terminal</label><select id="terminal"><option value="EGPSD">EGPSD</option></select></div>
-<div><label>Alt.Ratio 20ft</label><input type="number" id="ratio20" value="3" min="2"></div>
-<div><label>Alt.Ratio 40ft</label><input type="number" id="ratio40" value="3" min="2"></div>
-<div><button onclick="processFile()">Calculate KPIs</button></div>
-<div><button class="export-btn" onclick="exportKPIReport()">Export PDF</button></div>
+<div class="control-upload"><label>Upload Vessel Work Instruction</label><input type="file" id="fileInput" accept=".txt,.csv,.xlsx,.xls"></div>
+<div class="control-terminal"><label>Terminal</label>
+<select id="terminal" onchange="onTerminalChange()">
+<option value="">Select Terminal</option>
+<option value="EGPSD">EGPSD</option>
+<option value="MAPTM">MAPTM</option>
+<option value="NGAPP">NGAPP</option>
+<option value="NGONN">NGONN</option>
+<option value="OMSLL">OMSLL</option>
+<option value="BHBAH">BHBAH</option>
+<option value="HRRJK">HRRJK</option>
+</select>
 </div>
-<div id="status" class="status">Waiting for file upload...</div>
+<div id="ratio20Control" class="hidden"><label>Alt.Ratio 20ft</label><input type="number" id="ratio20" value="2" min="2"></div>
+<div id="ratio40Control" class="hidden"><label>Alt.Ratio 40ft</label><input type="number" id="ratio40" value="2" min="2"></div>
+<div class="control-calculate"><button onclick="processFile()">Calculate KPIs</button></div>
+<div class="control-export"><button class="export-btn" onclick="exportKPIReport()">Export PDF</button></div>
+</div>
+<div id="status" class="status">Waiting for File Upload</div>
 </div>
 
 <div id="summaryCard" class="card hidden">
@@ -162,52 +429,59 @@ tr:hover{background:#f8fafc}
 <div class="kpi-grid">
 
 <div class="metric">
-<div class="metric-title">Avg Loading Points</div>
+<div class="metric-title"><span>Loading Points</span><span class="metric-target" id="loadingTarget"></span></div>
 <div class="metric-value" id="loadingKPI">0.00</div>
 <div class="small-note" id="loadingObs">Hour + QC observations: 0</div>
 <button class="details-btn" onclick="toggleDetails('loadingDetails')">Show / Hide Details</button>
 </div>
 
 <div class="metric">
-<div class="metric-title">Rehandles KPI</div>
+<div class="metric-title"><span>Rehandles</span><span class="metric-target" id="rehandlesTarget"></span></div>
 <div class="metric-value" id="rehandlesKPI">0.00%</div>
 <div class="small-note" id="rehandlesObs">Load from Yard: 0 | Rehandles: 0</div>
 <button class="details-btn" onclick="toggleDetails('rehandlesDetails')">Show / Hide Details</button>
 </div>
 
 <div class="metric">
-<div class="metric-title">RTG Moves Before Gantry</div>
+<div class="metric-title"><span>RTG Moves Before Gantry</span><span class="metric-target" id="rtgTarget"></span></div>
 <div class="metric-value" id="rtgMovesBeforeGantryKPI">0.00</div>
 <div class="small-note" id="rtgObs">Move per Bay: 0.00 | Efficiency: 0.00%</div>
 <button class="details-btn" onclick="toggleDetails('rtgDetails')">Show / Hide Details</button>
 </div>
 
 <div class="metric">
-<div class="metric-title">Yard Clashes KPI</div>
+<div class="metric-title"><span>Yard Clashes</span><span class="metric-target" id="yardClashesTarget"></span></div>
 <div class="metric-value" id="yardClashesKPI">0.00%</div>
-<div class="small-note" id="yardClashesObs">Counted Moves: 0 | Counted Pairs: 0</div>
+<div class="small-note" id="yardClashesObs">Clash Containers: 0 | Eligible Yard Loads: 0</div>
 <button class="details-btn" onclick="toggleDetails('yardClashesDetails')">Show / Hide Details</button>
 </div>
 
-<div class="metric">
-<div class="metric-title">Twin Yard Flow Adherence</div>
+<div class="metric" id="twinFlowMetric">
+<div class="metric-title"><span>Twin Yard Flow Adherence</span><span class="metric-target" id="twinFlowTarget"></span></div>
 <div class="metric-value" id="twinFlowKPI">0.00%</div>
 <div class="small-note" id="twinFlowObs">Total Twins: 0 | Not Respecting: 0</div>
-<button class="details-btn" onclick="toggleDetails('twinFlowDetails')">Show / Hide Details</button>
+<button class="details-btn" id="twinFlowBtn" onclick="toggleDetails('twinFlowDetails')">Show / Hide Details</button>
 </div>
 
 <div class="metric">
-<div class="metric-title">Twin Planning KPI</div>
+<div class="metric-title"><span>Twin Planning</span><span class="metric-target" id="twinTarget"></span></div>
 <div class="metric-value" id="twinKPI">0.00%</div>
 <div class="small-note" id="twinObs">Opportunities: 0 Pairs | Planned: 0 Pairs</div>
 <button class="details-btn" onclick="toggleDetails('twinDetails')">Show / Hide Details</button>
 </div>
 
-<div class="metric">
-<div class="metric-title">Alternation KPI</div>
+<div class="metric" id="alternationMetric">
+<div class="metric-title"><span>Alternation</span><span class="metric-target" id="alternationTarget"></span></div>
 <div class="metric-value" id="alternationKPI">0.00%</div>
-<div class="small-note" id="alternationObs">Load from Yard: 0 | AltCount: 0</div>
+<div class="small-note" id="alternationObs">Yard Opportunities: 0 | Alternation Count: 0</div>
 <button class="details-btn" onclick="toggleDetails('alternationDetails')">Show / Hide Details</button>
+</div>
+
+<div class="metric disabled" id="dualCyclingMetric">
+<div class="metric-title">Dual Cycling</div>
+<div class="metric-value" id="dualCyclingKPI">N/A</div>
+<div class="small-note" id="dualCyclingObs">Under development</div>
+<button class="details-btn" disabled>Show / Hide Details</button>
 </div>
 
 </div>
@@ -215,13 +489,25 @@ tr:hover{background:#f8fafc}
 
 <!-- Detail cards -->
 <div id="loadingDetails" class="card hidden">
-<div class="detail-card-header"><h2>Loading Points Details</h2><button class="export-btn-detail" onclick="exportDetailPDF('loadingDetails','Loading Points')">Export Details PDF</button></div>
-<div class="table-wrap"><table><thead><tr><th>Hour</th><th>QC</th><th>Distinct Yard Blocks</th><th>Yard Blocks</th></tr></thead><tbody id="loadingTable"></tbody></table></div>
+<div class="detail-card-header"><h2>Loading Points Details</h2><div class="button-group"><button class="export-detail-btn" onclick="exportDetailPDF('loadingDetails','Loading Points')">Export Details PDF</button><button class="export-detail-btn" onclick="exportDetailExcel('loadingQCTable','Loading Points')">Export to Excel</button></div></div>
+<div class="table-wrap"><table id="loadingQCTable"><thead><tr><th>Hour</th><th>System Hour</th><th>QC</th><th>Distinct Loading Points</th><th>Loading Points</th></tr></thead><tbody id="loadingTable"></tbody></table></div>
+<div id="loadingQueueSection" style="margin-top:28px">
+<div class="detail-card-header"><h2>Loading Points per Queue</h2><div class="button-group"><button class="export-detail-btn" onclick="exportDetailPDF('loadingQueueSection','Loading Points per Queue')">Export Details PDF</button><button class="export-detail-btn" onclick="exportDetailExcel('loadingQueueTable','Loading Points per Queue')">Export to Excel</button></div></div>
+<div class="table-wrap"><table id="loadingQueueTable"><thead><tr><th>System Hour Interval</th><th>Queue</th><th>Distinct Loading Points</th><th>Loading Points</th></tr></thead><tbody id="loadingQueueTableBody"></tbody></table></div>
+</div>
 </div>
 
 <div id="rehandlesDetails" class="card hidden">
-<div class="detail-card-header"><h2>Rehandles Details</h2><button class="export-btn-detail" onclick="exportDetailPDF('rehandlesDetails','Rehandles')">Export Details PDF</button></div>
-<div class="table-wrap"><table><thead><tr><th>Yard Block/Bay/Row</th><th>Rehandled Container</th><th>Verified Position</th><th>Rehandle Reason</th><th>Tier</th><th>Move Time</th></tr></thead><tbody id="rehandlesTable"></tbody></table></div>
+<div class="detail-card-header"><h2>Rehandles Details</h2><div class="button-group"><button class="export-detail-btn" onclick="exportDetailPDF('rehandlesDetails','Rehandles')">Export Details PDF</button><button class="export-detail-btn" onclick="exportDetailExcel('rehandlesDetailTable','Rehandles')">Export to Excel</button></div></div>
+<div class="table-actions" style="margin:12px 0 4px;justify-content:flex-start">
+<select id="rehandlesVerifiedFilter" onchange="filterRehandlesDetails()" style="width:auto;min-width:220px">
+<option value="">All Verified Positions</option>
+<option value="Actual">Actual</option>
+<option value="Planned">Planned</option>
+</select>
+<span id="rehandlesFilterCount" class="small-note" style="margin:0;font-weight:700"></span>
+</div>
+<div class="table-wrap"><table id="rehandlesDetailTable"><thead><tr><th>Yard Block/Bay/Row</th><th>Rehandled Container</th><th>Verified Position</th><th>Rehandle Reason</th><th>Tier</th></tr></thead><tbody id="rehandlesTable"></tbody></table></div>
 </div>
 
 <div id="rtgDetails" class="card hidden">
@@ -230,56 +516,392 @@ tr:hover{background:#f8fafc}
 <h2>RTG Moves Before Gantry Details</h2>
 <div class="table-actions">
 <button class="details-tab" onclick="showRTGDetail('segments')">RTG Segment Details</button>
+<button class="details-tab" onclick="showRTGDetail('bays')">Yard Bay Counts</button>
 <button class="details-tab" onclick="showRTGDetail('summary')">RTG Summary</button>
 </div>
 </div>
-<button class="export-btn-detail" onclick="exportDetailPDF('rtgDetails','RTG Moves Before Gantry')">Export Details PDF</button>
+<div class="button-group"><button class="export-detail-btn" onclick="exportDetailPDF('rtgDetails','RTG Moves Before Gantry')">Export Details PDF</button><button class="export-detail-btn" onclick="exportDetailExcel('rtgDetailTable','RTG Moves Before Gantry')">Export to Excel</button></div>
 </div>
 <div class="table-wrap"><table id="rtgDetailTable"></table></div>
 </div>
 
 <div id="yardClashesDetails" class="card hidden">
-<div class="detail-card-header"><h2>Yard Clashes Details</h2><button class="export-btn-detail" onclick="exportDetailPDF('yardClashesDetails','Yard Clashes')">Export Details PDF</button></div>
-<div class="table-wrap"><table><thead><tr><th>System Hour</th><th>Clash Window</th><th>Yard Block</th><th>POW 1</th><th>Bay 1</th><th>Moves 1</th><th>POW 2</th><th>Bay 2</th><th>Moves 2</th><th>Clash Moves</th><th>Status</th><th>Clashed Container IDs</th><th>Clash Reason</th></tr></thead><tbody id="yardClashesTable"></tbody></table></div>
+<div class="detail-card-header"><h2>Yard Clashes Details</h2><div class="button-group"><button class="export-detail-btn" onclick="exportDetailPDF('yardClashesDetails','Yard Clashes')">Export Details PDF</button></div></div>
+<h3>COUNTED CLASHES</h3>
+<div class="table-wrap"><table><thead><tr><th>System Hour</th><th>Clash Window</th><th>1st Yard Block</th><th>1st POW</th><th>1st Yard Bay</th><th>1st Moves Count</th><th>2nd Yard Block</th><th>2nd POW</th><th>2nd Yard Bay</th><th>2nd Moves Count</th><th>Status</th><th>Clash Reason</th></tr></thead><tbody id="yardClashesTable"></tbody></table></div>
+<h3 style="margin-top:28px">POTENTIAL CLASHES</h3>
+<div class="table-wrap"><table><thead><tr><th>System Hour</th><th>Clash Window</th><th>1st Yard Block</th><th>1st POW</th><th>1st Yard Bay</th><th>1st Moves Count</th><th>2nd Yard Block</th><th>2nd POW</th><th>2nd Yard Bay</th><th>2nd Moves Count</th><th>Status</th><th>Clash Reason</th></tr></thead><tbody id="yardPotentialClashesTable"></tbody></table></div>
+<div id="hrrjkEhrsClashesSection" class="hidden">
+<h3 style="margin-top:28px">EH/RS YARD CLASHES — HRRJK ONLY</h3>
+<div class="table-wrap"><table><thead><tr><th>System Hour</th><th>Clash Window</th><th>1st Yard Block</th><th>1st POW</th><th>1st Yard Bay</th><th>1st Moves Count</th><th>2nd Yard Block</th><th>2nd POW</th><th>2nd Yard Bay</th><th>2nd Moves Count</th><th>Status</th><th>Clash Reason</th></tr></thead><tbody id="hrrjkEhrsClashesTable"></tbody></table></div>
+</div>
+<div class="detail-card-header" style="margin-top:28px"><h2>Clashes Containers</h2><div class="button-group"><button class="export-detail-btn" onclick="exportDetailExcel('clashesContainersTable','Clashes Containers')">Export to Excel</button></div></div>
+<div class="table-actions" style="margin:12px 0 4px;justify-content:flex-start">
+<input class="filter-box" type="search" id="clashesSystemHourSearch" list="clashesSystemHourOptions" placeholder="Search System Hour (for example: +1st day 17:00)" oninput="filterClashesContainersBySystemHour()" style="margin:0;max-width:390px">
+<datalist id="clashesSystemHourOptions"></datalist>
+<select id="clashesStatusFilter" onchange="filterClashesContainersBySystemHour()" style="width:auto;min-width:190px">
+<option value="">All Statuses</option>
+<option value="Counted Clash">Counted Clash</option>
+<option value="Potential Clash">Potential Clash</option>
+</select>
+<button class="details-btn" onclick="clearClashesSystemHourSearch()" style="width:auto;margin:0;padding:12px 18px">Clear</button>
+<span id="clashesContainerFilterCount" class="small-note" style="margin:0;font-weight:700"></span>
+</div>
+<div class="table-wrap"><table><thead><tr><th>Move Time</th><th>Container</th><th>Yard Block/Bay/Row</th><th>POW</th><th>System Hour</th><th>Status</th></tr></thead><tbody id="clashesContainersTable"></tbody></table></div>
 </div>
 
 <div id="twinFlowDetails" class="card hidden">
-<div class="detail-card-header"><h2>Yard Flow Not Respected</h2><button class="export-btn-detail" onclick="exportDetailPDF('twinFlowDetails','Twin Yard Flow')">Export Details PDF</button></div>
-<div class="table-wrap"><table><thead><tr><th>Status</th><th>Queue</th><th>Bay Master Seq</th><th>Bay Master Equipment</th><th>Bay Master Yard Position</th><th>Bay Master Vessel Position</th><th>Bay Master Type</th><th>Bay Mirror Seq</th><th>Bay Mirror Equipment</th><th>Bay Mirror Yard Position</th><th>Bay Mirror Vessel Position</th><th>Bay Mirror Type</th><th>Reason</th></tr></thead><tbody id="twinFlowBadTable"></tbody></table></div>
-<h2 style="margin-top:28px">All Twin Details</h2>
-<div class="table-wrap"><table><thead><tr><th>Status</th><th>Queue</th><th>Bay Master Seq</th><th>Bay Master Equipment</th><th>Bay Master Yard Position</th><th>Bay Master Vessel Position</th><th>Bay Master Type</th><th>Bay Mirror Seq</th><th>Bay Mirror Equipment</th><th>Bay Mirror Yard Position</th><th>Bay Mirror Vessel Position</th><th>Bay Mirror Type</th><th>Reason</th></tr></thead><tbody id="twinFlowAllTable"></tbody></table></div>
+<div class="detail-card-header"><h2>Yard Flow Not Respected</h2><div class="button-group"><button class="export-detail-btn" onclick="exportDetailPDF('twinFlowDetails','Twin Yard Flow')">Export Details PDF</button><button class="export-detail-btn" onclick="exportDetailExcel('twinFlowBadTable','Twin Yard Flow - Not Respected')">Export to Excel</button></div></div>
+<div class="table-wrap"><table><thead><tr><th>Status</th><th>Queue</th><th>Bay Master Seq</th><th>Bay Master Equipment</th><th>Bay Master Yard Position</th><th>Bay Master Type</th><th>Bay Mirror Seq</th><th>Bay Mirror Equipment</th><th>Bay Mirror Yard Position</th><th>Bay Mirror Type</th></tr></thead><tbody id="twinFlowBadTable"></tbody></table></div>
+<div class="detail-card-header" style="margin-top:28px"><h2>All Twin Details</h2><div class="button-group"><button class="export-detail-btn" onclick="exportDetailExcel('twinFlowAllTable','Twin Yard Flow - All')">Export to Excel</button></div></div>
+<div class="table-wrap"><table><thead><tr><th>Status</th><th>Queue</th><th>Bay Master Seq</th><th>Bay Master Equipment</th><th>Bay Master Yard Position</th><th>Bay Master Type</th><th>Bay Mirror Seq</th><th>Bay Mirror Equipment</th><th>Bay Mirror Yard Position</th><th>Bay Mirror Type</th></tr></thead><tbody id="twinFlowAllTable"></tbody></table></div>
 </div>
 
 <div id="twinDetails" class="card hidden">
-<div class="detail-card-header"><h2>Twin Planning Details</h2><button class="export-btn-detail" onclick="exportDetailPDF('twinDetails','Twin Planning')">Export Details PDF</button></div>
+<div class="detail-card-header"><h2>Twin Planning Details</h2><div class="button-group"><button class="export-detail-btn" onclick="exportDetailPDF('twinDetails','Twin Planning')">Export Details PDF</button><button class="export-detail-btn" onclick="exportMissedTwinsExcel()">Export Missed Twins to Excel</button><button class="export-detail-btn" onclick="exportDetailExcel('twinTable','Twin Planning')">Export All Twins to Excel</button></div></div>
 <div class="table-wrap"><table><thead><tr><th>Status</th><th>Container 1</th><th>Yard Bay 1</th><th>Move To 1</th><th>Queue 1</th><th>Seq 1</th><th>Container 2</th><th>Yard Bay 2</th><th>Move To 2</th><th>Queue 2</th><th>Seq 2</th></tr></thead><tbody id="twinTable"></tbody></table></div>
 </div>
 
 <div id="alternationDetails" class="card hidden">
-<div class="detail-card-header"><h2>Alternation per Queue</h2><button class="export-btn-detail" onclick="exportDetailPDF('alternationDetails','Alternation')">Export Details PDF</button></div>
-<div class="table-wrap"><table><thead><tr><th>Vessel ID</th><th>Vessel Name</th><th>Queue</th><th>Length</th><th>Ratio</th><th>Moves</th><th>AltCount</th><th>Alternation %</th></tr></thead><tbody id="alternationQueueTable"></tbody></table></div>
-<div class="table-actions" style="margin-top:28px"><h2>Alternation Details</h2><input class="filter-box" type="text" id="alternationQueueSearch" placeholder="Search Queue..." oninput="filterAlternationDetails()"></div>
-<div class="table-wrap"><table><thead><tr><th>Vessel ID</th><th>Queue</th><th>Sequence</th><th>Yard Position</th><th>Yard Bay</th><th>Length</th><th>Compared With</th><th>Alternated?</th></tr></thead><tbody id="alternationDetailTable"></tbody></table></div>
+<div class="detail-card-header"><h2>Alternation per Queue</h2><div class="button-group"><button class="export-detail-btn" onclick="exportDetailPDF('alternationDetails','Alternation')">Export Details PDF</button><button class="export-detail-btn" onclick="exportDetailExcel('alternationQueueTable','Alternation - Per Queue')">Export to Excel</button></div></div>
+<div class="table-wrap"><table><thead><tr><th>Vessel ID</th><th>Vessel Name</th><th>Queue</th><th>Length</th><th>Ratio</th><th>Moves</th><th>Compared Moves</th><th>AltCount</th><th>Alternation %</th></tr></thead><tbody id="alternationQueueTable"></tbody></table></div>
+<div class="detail-card-header" style="margin-top:28px"><h2>Alternation Details</h2><div class="button-group"><button class="export-detail-btn" onclick="exportDetailExcel('alternationDetailTable','Alternation - Details')">Export to Excel</button></div></div>
+<div class="table-actions"><input class="filter-box" type="text" id="alternationQueueSearch" placeholder="Search Queue..." oninput="filterAlternationDetails()"></div>
+<div class="table-wrap"><table><thead><tr><th>Vessel ID</th><th>Queue</th><th>Sequence</th><th>Yard Position</th><th>Yard Block</th><th>Yard Bay</th><th>Length</th><th>Opportunity?</th><th>Compared With</th><th>Alternated?</th></tr></thead><tbody id="alternationDetailTable"></tbody></table></div>
 </div>
 
 <div class="copyright-footer">SPC Tangier - HBO Confidential & Proprietary © 2026</div>
 </div>
 
 <script>
-const DETAILS_IDS=["loadingDetails","rehandlesDetails","rtgDetails","yardClashesDetails","twinFlowDetails","twinDetails","alternationDetails"];
-const CLASH_DISTANCE_LIMIT = 12;
-const SAME_BAY_MIN_GAP_MINUTES = 2;
-const MIN_COUNTED_CLASH_MOVES = 4;
-const MONTH_ABBR = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
-const EGPSD_SPECIAL_BAY_ORDER = ["01","03","05","07","09","11","13","15","17","19","21","23","25","27","29","31","33","35","37","39","91","93","95","41","43","45","47","49","51","53","55","57","59","61","63","65","67","69","71","73","75","77","79","81","83","85"];
+/* =====================================================================================
+   TERMINAL-AWARE YARD PARSING LAYER
+   ---------------------------------------------------------------------------------------
+   This section implements section 4 of the KPI spec ("Yard-position parser") as a
+   dispatcher: parseYardPosition(terminalCode, row). Every other KPI (Loading Points,
+   Rehandles, RTG Moves Before Gantry, Yard Clashes, Twin Planning, Alternation) is
+   unchanged in its GROUPING/AVERAGING/SCORING algorithm across terminals — only the
+   yard fields feeding those algorithms differ by terminal.
 
-let latestRTGData={summary:[],bayCounts:[],rtgDetails:[]};
+   Twin Yard Flow (section not in the general parser spec) stays EGPSD-only, per the
+   request: its physical bay-adjacency model was only confirmed for EGPSD.
+
+   Consolidated single-WI build — verified against live per-terminal WI workbooks,
+   terminal yard maps and the confirmed KPI rules supplied during testing.
+
+   Confirmed against live formulas / real data:
+   - MAPTM's "Yard LP" uses the sector scheme read off Yard Position: char-2="Z"->"Z";
+     char-1 in {1,2}->char2+"S1"; char-1 in {4,5}->char2+"S3"; else char2+"S2"; and a
+     length-9 Yard Position (i.e. literally "Heap Area", which is 9 characters) maps to
+     "HP". BHBAH, NGAPP, NGONN and HRRJK use the physical Yard Block as Loading Point.
+   - NGAPP and MAPTM/BHBAH Yard Position parsing is driven by position structure and
+     Category. KPI eligibility is applied separately so a valid physical position is
+     retained even when the move is excluded from an RTG-only KPI.
+   - NGONN parses Block(1)+Bay(3)+Row(1)+optional dot+Tier(1). A-G split into side 1
+     at bay <=070 and side 2 above 070. It also accepts A1B/A1C/A1D EH/RS positions
+     as Block(3)+Bay(2)+Row(1)+Tier(1). J/K/R are unsplit RTG blocks; H is unsplit
+     EH/RS; A1/A2/B1/B2 are split EH/RS blocks. These EH/RS areas remain valid for
+     Loading Points, Rehandles and Twin Planning, while RTG Moves Before Gantry and
+     Yard Clashes use only the confirmed RTG set. NGONN OOG loads are not RTG-eligible.
+   - NGAPP RTG eligibility is restricted to the confirmed physical RTG block map:
+     3J/3I/3H/3G; 4J/4I/4H/4G/4F/4D/4C/4B; and
+     5J/5I/5H/5G/5F/5D/5C/5B.
+   - Per direct instruction: Yard Tier is always the last character of the position,
+     for every terminal in the 6/7-char families — regardless of length. (This matches
+     what was already implemented for HRRJK/NGAPP/NGONN; no change needed there, but is
+     now a confirmed rule rather than an assumption.)
+   - OMSLL's Yard Block/Row for 8-character positions is REVERTED to match the live
+     production formula exactly (3 characters only) — the original spec doc called this
+     a defect to avoid, but the live OMSLL workbook confirms this is real, current
+     production behavior. EGPSD (already verified, untouched) always used this same
+     3-char rule, so OMSLL now matches EGPSD's existing behavior here.
+   - BHBAH's live formulas were confirmed to exactly match the MAPTM 6-char parser.
+
+   EGPSD's special physical bay ordering remains isolated to EGPSD. Other terminals
+   retain their already-tested numeric bay-distance behavior.
+   ===================================================================================== */
+
+const MAPTM_FAMILY = new Set(["MAPTM","BHBAH"]);
+
+// Sector-based Loading Point used only by MAPTM. Other terminals use their
+// confirmed physical yard/loading-point rules.
+function sectorLoadingPoint(moveKindUpper,yardPosition){
+if(moveKindUpper!=="LOAD")return"";
+if(yardPosition.length===9)return"HP"; // catches "Heap Area" (exactly 9 chars) and maps it to HP
+const c1=yardPosition.charAt(0);
+const c2=yardPosition.charAt(1);
+if(c2==="Z")return"Z";
+if(c1==="1"||c1==="2")return c2+"S1";
+if(c1==="4"||c1==="5")return c2+"S3";
+return c2+"S2";
+}
+
+// Confirmed EGPSD RTG yard map: numbered blocks 01 through 11 with block
+// letters A through J. Other valid 3/4-character blocks are EH/RS areas.
+function isEGPSDRTGBlock(block){
+return /^(?:0[1-9]|1[01])[A-J]$/.test(upper(block));
+}
+
+// Confirmed NGAPP equipment-area model. Numeric A-E and G-J blocks are RTG,
+// except 5A and 6E. All numeric F blocks and the confirmed auxiliary blocks
+// below are EH/RS. Valid EH/RS positions remain available to yard-wide KPIs,
+// but are excluded from RTG-only KPIs.
+const NGAPP_EHRS_BLOCKS=new Set(["5A","6E","JA","JB","7K","RA"]);
+const NGAPP_RTG_BLOCK_LETTERS=new Set(["A","B","C","D","E","G","H","I","J"]);
+function isNGAPPRTGBlock(block){
+const b=upper(block);
+if(NGAPP_EHRS_BLOCKS.has(b))return false;
+const match=b.match(/^(\d)([A-Z])$/);
+return Boolean(match&&NGAPP_RTG_BLOCK_LETTERS.has(match[2]));
+}
+
+// Confirmed NGONN physical yard model. A-G are split by their three-digit bay:
+// bay <= 070 is side 1 and bay > 070 is side 2. H, J, K and R are unsplit.
+// A/B/H are valid EH/RS yards; C-G/J/K/R are RTG-operated yards. A1B/A1C/A1D
+// are additional confirmed EH/RS blocks with their own Block(3)+Bay(2) format.
+const NGONN_SPLIT_BLOCKS=new Set(["A","B","C","D","E","F","G"]);
+const NGONN_UNSPLIT_BLOCKS=new Set(["H","J","K","R"]);
+const NGONN_RTG_BLOCKS=new Set(["C1","C2","D1","D2","E1","E2","F1","F2","G1","G2","J","K","R"]);
+const NGONN_SPECIAL_EHRS_BLOCKS=new Set(["A1B","A1C","A1D"]);
+const NGONN_EHRS_BLOCKS=new Set(["A1","A2","B1","B2","H",...NGONN_SPECIAL_EHRS_BLOCKS]);
+function parseNGONNYardPosition(value){
+const p=upper(value);
+// Special EH/RS form: A1D15A5 => block A1D, bay A1D15, row A, tier 5.
+const specialMatch=p.match(/^(A1[BCD])(\d{2})([A-Z])\.?([0-9])$/);
+if(specialMatch){
+const yardBlock=specialMatch[1],bayDigits=specialMatch[2],row=specialMatch[3],tier=Number(specialMatch[4]);
+if(!NGONN_SPECIAL_EHRS_BLOCKS.has(yardBlock))return null;
+const yardBay=yardBlock+bayDigits;
+return{yardPosition:p,yardBlock,yardBay,yardBlockRow:yardBay+row,yardTier:tier,bayNumber:Number(bayDigits),row};
+}
+// Supported live forms: C116D.1 and C116D1.
+const match=p.match(/^([A-Z])(\d{3})([A-Z])\.?([0-9])$/);
+if(!match)return null;
+const physicalBlock=match[1],bayDigits=match[2],row=match[3],tier=Number(match[4]);
+if(!NGONN_SPLIT_BLOCKS.has(physicalBlock)&&!NGONN_UNSPLIT_BLOCKS.has(physicalBlock))return null;
+const bayNumber=Number(bayDigits);
+const yardBlock=NGONN_SPLIT_BLOCKS.has(physicalBlock)?physicalBlock+(bayNumber<=70?"1":"2"):physicalBlock;
+const yardBay=physicalBlock+bayDigits;
+return{yardPosition:p,yardBlock,yardBay,yardBlockRow:yardBay+row,yardTier:tier,bayNumber,row};
+}
+
+function deriveYardFields(row, terminal){
+const moveKindUpper=clean(getValue(row,["Move Kind"])).toUpperCase();
+const category=clean(getValue(row,["Category"])).toUpperCase();
+const moveFrom=clean(getValue(row,["Move From"])).toUpperCase();
+const len=moveFrom.length;
+const isDischarge=moveKindUpper==="DISCHARGE";
+const out={moveFrom,category,moveKind:moveKindUpper};
+
+if(MAPTM_FAMILY.has(terminal)){
+// spec 4.1 (MAPTM baseline) / 4.4 (BHBAH = MAPTM parser) — confirmed against live
+// formulas for both terminals.
+const validCandidate=!isDischarge&&len===6;
+const isZulu=validCandidate&&moveFrom.charAt(1)==="Z";
+out.isValidYard=validCandidate;
+out.loadFromYard=isDischarge?"EC":(validCandidate?(isZulu?"No":"Yes"):"No");
+out.yardPosition=isDischarge?"EC":(validCandidate?moveFrom:"Heap Area");
+out.yardBlock=validCandidate?moveFrom.substring(0,2):"HP";
+out.yardBay=validCandidate?moveFrom.substring(0,4):"HP";
+out.yardBlockRow=validCandidate?moveFrom.substring(0,5):"HP";
+out.yardTier=validCandidate?Number(moveFrom.slice(-1)):null;
+// BHBAH uses the physical Yard Block itself as the Loading Point. MAPTM keeps
+// its confirmed sector-based Yard LP transformation.
+out.loadingPoint=terminal==="BHBAH"?out.yardBlock:sectorLoadingPoint(moveKindUpper,out.yardPosition);
+out.isRTGEligible=out.loadFromYard==="Yes";
+
+}else if(terminal==="NGONN"){
+const isOOG=boolVal(getValue(row,["Unit Is OOG?","Unit is OOG?"]));
+const parsed=parseNGONNYardPosition(moveFrom);
+const validCandidate=!isDischarge&&parsed!==null;
+out.isValidYard=validCandidate;
+out.loadFromYard=isDischarge?"EC":(validCandidate&&!isOOG?"Yes":"No");
+out.yardPosition=isDischarge?"EC":(validCandidate?parsed.yardPosition:"Heap Area");
+out.yardBlock=validCandidate?parsed.yardBlock:"HP";
+out.yardBay=validCandidate?parsed.yardBay:"HP";
+out.yardBlockRow=validCandidate?parsed.yardBlockRow:"HP";
+out.yardTier=validCandidate?parsed.yardTier:null;
+out.loadingPoint=moveKindUpper==="LOAD"&&validCandidate?out.yardBlock:"";
+out.isRTGEligible=out.loadFromYard==="Yes"&&NGONN_RTG_BLOCKS.has(out.yardBlock);
+
+}else if(terminal==="NGAPP"){
+// NGAPP supports Block(2)+Bay(2/3)+Row(1)+Tier(1). Its confirmed RTG map is
+// separate from the wider valid-yard pool used by yard-wide KPIs.
+const validCandidate=!isDischarge&&(len===6||len===7);
+const isZulu=validCandidate&&moveFrom.charAt(1)==="Z";
+out.isValidYard=validCandidate;
+let loadFromYard;
+if(isDischarge)loadFromYard="EC";
+else if(validCandidate)loadFromYard=isZulu?"No":"Yes";
+else loadFromYard="No";
+out.loadFromYard=loadFromYard;
+out.yardPosition=isDischarge?"EC":(validCandidate?moveFrom:"Heap Area");
+out.yardBlock=validCandidate?moveFrom.substring(0,2):"HP";
+out.yardBay=validCandidate?(len===6?moveFrom.substring(0,4):moveFrom.substring(0,5)):"HP";
+out.yardBlockRow=validCandidate?(len===6?moveFrom.substring(0,5):moveFrom.substring(0,6)):"HP";
+out.yardTier=validCandidate?Number(moveFrom.slice(-1)):null;
+// The S1/S2/S3 sector concept is MAPTM-only.
+out.loadingPoint=moveKindUpper==="LOAD"?out.yardBlock:"";
+out.isRTGEligible=out.loadFromYard==="Yes"&&isNGAPPRTGBlock(out.yardBlock);
+
+}else if(terminal==="HRRJK"){
+// spec 4.3 — confirmed live: no Zulu exclusion, Yard LP is plain Yard Block (not the
+// sector scheme used by MAPTM/NGAPP-family).
+const validCandidate=!isDischarge&&(len===6||len===7);
+out.isValidYard=validCandidate;
+out.loadFromYard=isDischarge?"EC":(validCandidate?"Yes":"No");
+out.yardPosition=isDischarge?"EC":(validCandidate?moveFrom:"Heap Area");
+out.yardBlock=validCandidate?moveFrom.substring(0,2):"HP";
+// HRRJK supports Block(2)+Bay(2/3)+Row(1)+Tier(1).
+out.yardBay=validCandidate?moveFrom.slice(0,-2):"HP";
+out.yardBlockRow=validCandidate?moveFrom.slice(0,-1):"HP";
+// Tier is always the last character of the position, per direct instruction.
+out.yardTier=validCandidate?Number(moveFrom.slice(-1)):null;
+out.loadingPoint=out.yardBlock;
+// HRRJK 1E-4E are valid EH/RS yard areas, not RTG-operated yard areas.
+out.isRTGEligible=out.loadFromYard==="Yes"&&!HRRJK_EHRS_BLOCKS.has(out.yardBlock);
+
+}else{
+// OMSLL (spec 4.5) and EGPSD (existing, verified tool) share this structural family:
+// 7/8-char positions, "Z"-prefix accepted directly, and M/3/P exclusions.
+const isZPrefixed=moveFrom.charAt(0)==="Z";
+let loadFromYard;
+if(isDischarge)loadFromYard="EC";
+else if(isZPrefixed)loadFromYard="Yes";
+else if(len===7){
+const excluded=moveFrom.charAt(2)==="M"||moveFrom.charAt(0)==="3"||moveFrom.charAt(0)==="P";
+loadFromYard=excluded?"No":"Yes";
+}else loadFromYard="No";
+out.loadFromYard=loadFromYard;
+
+let yardPosition;
+if(isDischarge)yardPosition="EC";
+else if(len>6&&len<9&&moveFrom.charAt(0)!=="P")yardPosition=moveFrom;
+else yardPosition="Heap Area";
+out.yardPosition=yardPosition;
+out.isValidYard=yardPosition!=="Heap Area"&&yardPosition!=="EC";
+
+const yLen=yardPosition.length;
+out.yardBlock=yLen===8?moveFrom.substring(0,3):((yLen===7&&moveFrom.charAt(0)!=="P")?moveFrom.substring(0,3):"HP");
+if(terminal==="OMSLL"){
+// OMSLL positions are Block(3) + Bay(variable 2/3 digits) + Row(1) + Tier(1).
+// Examples: Z6H17F1 -> Bay Z6H17 / Row Z6H17F;
+//           Z6H107F1 -> Bay Z6H107 / Row Z6H107F.
+// OMSLL M blocks are valid EH positions even though they are not RTG-eligible.
+// Preserve their real bay for Loading Points, Rehandles, Twin Planning and
+// Alternation; RTG Moves Before Gantry and Yard Clashes still exclude them via
+// the separate isRTGEligible flag below.
+out.yardBay=out.isValidYard?yardPosition.slice(0,-2):"HP";
+out.yardBlockRow=out.isValidYard?yardPosition.slice(0,-1):"HP";
+out.loadingPoint=yLen===8?moveFrom.substring(0,3):
+(yLen===7?(moveFrom.charAt(2)==="M"?moveFrom.substring(0,3):(moveFrom.charAt(0)==="3"?"RS":(moveFrom.charAt(0)==="P"?"HP":moveFrom.substring(0,3)))):"HP");
+}else{
+// EGPSD uses a fixed Bay(2)+Row(1)+Tier(1) suffix. Removing those four
+// characters preserves either a 3-character RTG block or a 3/4-character
+// EH/RS block without truncating its physical identity.
+out.yardBlock=out.isValidYard?yardPosition.slice(0,-4):"HP";
+out.yardBay=out.isValidYard?yardPosition.slice(0,-2):"HP";
+out.yardBlockRow=out.isValidYard?yardPosition.slice(0,-1):"HP";
+out.loadingPoint=out.yardBlock;
+// RTG eligibility follows the confirmed map, not position length. Thus 05H is
+// RTG, while 08K, 08VC and 06KL-style areas remain valid EH/RS yard positions.
+out.loadFromYard=isDischarge?"EC":(out.isValidYard&&isEGPSDRTGBlock(out.yardBlock)?"Yes":"No");
+}
+out.yardTier=out.isValidYard?Number(yardPosition.slice(-1)):null;
+out.isRTGEligible=out.loadFromYard==="Yes";
+}
+return out;
+}
+
+const TERMINAL_NOTES={
+EGPSD:"EGPSD: RTG blocks are the confirmed 01A-11J map; other valid 3/4-character blocks remain EH/RS yard areas. Twin Yard Flow is available.",
+OMSLL:"OMSLL: 7/8-char yard positions, Z-prefix accepted, M/3/P exclusions (RS/EH/HP loading-point groups). Twin Yard Flow is EGPSD-only.",
+MAPTM:"MAPTM: 6-char yard positions, char-2 'Z' excluded. Twin Yard Flow is EGPSD-only.",
+BHBAH:"BHBAH: uses the 6-char yard parser, with the physical Yard Block itself as Loading Point. Twin Yard Flow is EGPSD-only.",
+NGAPP:"NGAPP: 6/7-char yard positions with 2/3-digit bays; Loading Point is the physical Yard Block; RTG eligibility follows the confirmed 3J-5B block map. Alternation and Twin Yard Flow are not applicable.",
+NGONN:"NGONN: A-G use the <=070/>070 block split; J/K/R and EH/RS block H are unsplit. A1/A2/B1/B2/H plus special blocks A1B/A1C/A1D are valid EH/RS yards and excluded only from RTG-only KPIs. Alternation and Twin Yard Flow are not applicable.",
+HRRJK:"HRRJK: 6/7-char yard positions with 2/3-digit bays, no Zulu/JB-JA-6E exclusion. Twin Yard Flow is EGPSD-only."
+};
+
+// Developed KPI targets only, transcribed from the 2026 terminal target book.
+// Scores, weights and undeveloped/parked KPIs are intentionally not modeled here.
+const KPI_TARGETS={
+MAPTM:{rehandles:2,twin:90,yardClashes:10,loading:3.7,alternation:80,rtgMoves:7},
+OMSLL:{rehandles:2,twin:90,yardClashes:5,loading:3.5,alternation:80,rtgMoves:5},
+EGPSD:{rehandles:2,twin:90,yardClashes:2,loading:4,alternation:90,rtgMoves:5,twinFlow:95},
+HRRJK:{rehandles:2,twin:90,yardClashes:2,loading:2,alternation:70,rtgMoves:6},
+NGONN:{rehandles:2,twin:60,yardClashes:2,loading:2,rtgMoves:4},
+NGAPP:{rehandles:2,twin:80,yardClashes:2,loading:3,rtgMoves:8},
+BHBAH:{rehandles:2,twin:90,yardClashes:2,loading:2,alternation:80,rtgMoves:10}
+};
+const LOWER_IS_BETTER=new Set(["rehandles","yardClashes","loading"]);
+const TARGET_VALUE_IDS=["loadingKPI","rehandlesKPI","rtgMovesBeforeGantryKPI","yardClashesKPI","twinFlowKPI","twinKPI","alternationKPI"];
+const TARGET_LABEL_IDS={loading:"loadingTarget",rehandles:"rehandlesTarget",rtgMoves:"rtgTarget",yardClashes:"yardClashesTarget",twinFlow:"twinFlowTarget",twin:"twinTarget",alternation:"alternationTarget"};
+const PERCENT_TARGETS=new Set(["rehandles","yardClashes","twinFlow","twin","alternation"]);
+function getTargetClass(kpiKey,value){
+const terminal=document.getElementById("terminal")?.value||"";
+const target=KPI_TARGETS[terminal]?.[kpiKey],numericValue=Number(value);
+if(target===undefined||Number.isNaN(numericValue))return"";
+if(Math.abs(numericValue-target)<=0.0001)return"target-good";
+const achieved=LOWER_IS_BETTER.has(kpiKey)?numericValue<target:numericValue>target;
+return achieved?"target-good":"target-bad";
+}
+function applyTargetColor(elementId,kpiKey,value){
+const el=document.getElementById(elementId);if(!el)return;
+el.classList.remove("target-good","target-bad","target-equal");
+const targetClass=getTargetClass(kpiKey,value);if(targetClass)el.classList.add(targetClass);
+}
+function renderTargetLabels(){
+const terminal=document.getElementById("terminal")?.value||"",targets=KPI_TARGETS[terminal]||{};
+Object.entries(TARGET_LABEL_IDS).forEach(([key,id])=>{
+const el=document.getElementById(id);if(!el)return;
+const target=targets[key];
+if(target===undefined){el.innerText="";el.classList.add("hidden");return;}
+const symbol=LOWER_IS_BETTER.has(key)?"≤":"≥";
+const value=PERCENT_TARGETS.has(key)?Number(target).toFixed(2)+"%":Number(target).toFixed(2);
+el.innerText=`Target: ${symbol}${value}`;el.classList.remove("hidden");
+});
+}
+function resetTargetColors(){
+TARGET_VALUE_IDS.forEach(id=>document.getElementById(id)?.classList.remove("target-good","target-bad","target-equal"));
+}
+
+function onTerminalChange(){
+const terminal=document.getElementById("terminal").value;
+resetTargetColors();
+renderTargetLabels();
+const supported=terminal==="EGPSD";
+const alternationSupported=Boolean(terminal)&&terminal!=="NGAPP"&&terminal!=="NGONN";
+// A KPI card is shown only where that KPI is applicable.
+document.getElementById("twinFlowMetric").classList.toggle("hidden",!supported);
+document.getElementById("twinFlowMetric").classList.remove("disabled");
+document.getElementById("twinFlowBtn").disabled=false;
+if(!supported){
+document.getElementById("twinFlowKPI").innerText="N/A";
+document.getElementById("twinFlowObs").innerText="Twin Yard Flow is only modeled for EGPSD's yard map.";
+document.getElementById("twinFlowDetails").classList.add("hidden");
+}
+document.getElementById("alternationMetric").classList.toggle("hidden",!alternationSupported);
+document.getElementById("ratio20Control").classList.toggle("hidden",!alternationSupported);
+document.getElementById("ratio40Control").classList.toggle("hidden",!alternationSupported||terminal==="HRRJK");
+if(!alternationSupported)document.getElementById("alternationDetails").classList.add("hidden");
+}
+document.getElementById("fileInput").addEventListener("change",function(){
+if(!this.files[0])return;
+document.getElementById("terminal").value="";
+onTerminalChange();
+document.getElementById("status").innerText="Select Terminal";
+});
 
 function clean(v){return v===null||v===undefined?"":String(v).trim();}
 function normalize(v){return clean(v);}
 function upper(v){return clean(v).toUpperCase();}
 function escapeHtml(v){return clean(v).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));}
 function boolVal(v){return ["true","t","1","yes","y"].includes(clean(v).toLowerCase());}
+function isSpecialStowValue(v){
+const value=upper(v);
+return value!==""&&!new Set(["FALSE","NO","N","0"]).has(value);
+}
 function getNumber(v){const n=Number(v);return Number.isNaN(n)?0:n;}
 function normalizeHeader(h){return clean(h).toLowerCase().replace(/[^a-z0-9]/g,"");}
 function getValue(row,names){
@@ -294,33 +916,81 @@ if(found!==undefined)return row[found];
 return "";
 }
 function getContainer(row){return clean(getValue(row,["Conatiner Number","Container Number","Equipment ID","Unit Nbr","Unit","Unit ID","Container ID"]));}
+const EXCEL_EPOCH_UTC=Date.UTC(1899,11,30);
+const DAY_MS=24*60*60*1000;
+function getMoveTimeSerial(row){
+const raw=getValue(row,["Move Time"]);
+if(raw===null||raw===undefined||raw==="")return null;
+const value=Number(raw);return Number.isFinite(value)&&value>0?value:null;
+}
+function ordinalSuffix(dayNum){
+const mod100=dayNum%100;if(mod100>=11&&mod100<=13)return"th";
+return dayNum%10===1?"st":dayNum%10===2?"nd":dayNum%10===3?"rd":"th";
+}
+function getOperationStartDate(rows){
+// System-day labels on this tool belong to load-based KPIs. Scan every Load
+// instruction in the WI, including loads later excluded by an individual KPI.
+const moveTimes=(rows||[]).filter(row=>upper(getValue(row,["Move Kind"]))==="LOAD").map(getMoveTimeSerial).filter(v=>v!==null);
+return moveTimes.length?excelSerialToDate(Math.min(...moveTimes)):null;
+}
+function getCalendarOperationDayNumber(date,rows){
+const opStartDate=getOperationStartDate(rows);if(!date||!opStartDate)return null;
+// Operational day 1 is the calendar date containing the earliest valid Load Move Time.
+// Each following calendar date increments the day number at midnight.
+const startDay=Date.UTC(opStartDate.getFullYear(),opStartDate.getMonth(),opStartDate.getDate());
+const targetDay=Date.UTC(date.getFullYear(),date.getMonth(),date.getDate());
+return Math.max(1,Math.floor((targetDay-startDay)/DAY_MS)+1);
+}
+function getDisplaySystemHourLabel(hourKey,rows){
+const match=clean(hourKey).match(/^(\d{4})-(\d{2})-(\d{2})(?:T|-)(\d{2})$/);if(!match)return"";
+const year=Number(match[1]),month=Number(match[2])-1,day=Number(match[3]),hour=Number(match[4]);
+// System Hour names the end of the source hour. Build the real recap date so
+// 23:00-23:59 correctly becomes 00:00 on the following WI calendar day.
+const recapDate=new Date(year,month,day,hour+1,0,0,0);
+const dayNum=getCalendarOperationDayNumber(recapDate,rows);if(dayNum===null)return"";
+const recapHour=String(recapDate.getHours()).padStart(2,"0");
+return `+${dayNum}${ordinalSuffix(dayNum)} day ${recapHour}:00`;
+}
+function getOperationalDayTimeParts(date,rows){
+const dayNum=getCalendarOperationDayNumber(date,rows);if(dayNum===null)return null;
+const time=String(date.getHours()).padStart(2,"0")+":"+String(date.getMinutes()).padStart(2,"0");
+return{dayNum,time,label:`${dayNum}${ordinalSuffix(dayNum)} day ${time}`};
+}
+function getOperationalClashWindow(start,end,rows){
+const first=getOperationalDayTimeParts(start,rows),last=getOperationalDayTimeParts(end,rows);if(!first||!last)return"";
+return first.dayNum===last.dayNum?`${first.dayNum}${ordinalSuffix(first.dayNum)} day ${first.time} → ${last.time}`:`${first.label} → ${last.label}`;
+}
 
 function toggleDetails(id){
 const target=document.getElementById(id);
+if(target.classList.contains("hidden")===false){target.classList.add("hidden");return;}
 const willShow=target.classList.contains("hidden");
 DETAILS_IDS.forEach(detailId=>document.getElementById(detailId).classList.add("hidden"));
 if(willShow)target.classList.remove("hidden");
 }
+const DETAILS_IDS=["loadingDetails","rehandlesDetails","rtgDetails","yardClashesDetails","twinFlowDetails","twinDetails","alternationDetails"];
 
-function processFile(){
-const file=document.getElementById("fileInput").files[0];
-if(!file){alert("Please upload the WI file.");return;}
-document.getElementById("status").innerText="Reading file...";
-const name=file.name.toLowerCase();
-const reader=new FileReader();
-if(name.endsWith(".xlsx")||name.endsWith(".xls")){
-reader.onload=e=>{
-const data=new Uint8Array(e.target.result);
-const wb=XLSX.read(data,{type:"array",cellDates:true});
+function parseWorkbookRows(data){
+const wb=XLSX.read(data,{type:"array"});
 const sheet=wb.Sheets[wb.SheetNames[0]];
-const rows=XLSX.utils.sheet_to_json(sheet,{defval:"",raw:true});
-runAllKPIs(rows);
-};
-reader.readAsArrayBuffer(file);
-}else{
-reader.onload=e=>runAllKPIs(parseText(e.target.result));
-reader.readAsText(file);
+return XLSX.utils.sheet_to_json(sheet,{defval:"",raw:true});
 }
+async function processFile(){
+const file=document.getElementById("fileInput").files[0];
+if(!file){alert("Please upload a WI file.");return;}
+if(!document.getElementById("terminal").value){alert("Please select a terminal.");return;}
+document.getElementById("status").innerText="Reading file...";
+try{
+let rows=await readRowsFromUploadedFile(file);
+if(!rows.length)throw new Error("No data found in the uploaded file.");
+runAllKPIs(rows);
+}catch(error){alert("Error: "+error.message);document.getElementById("status").innerText="Processing failed.";}
+}
+
+async function readRowsFromUploadedFile(file){
+const name=file.name.toLowerCase();
+if(name.endsWith(".xlsx")||name.endsWith(".xls"))return parseWorkbookRows(await file.arrayBuffer());
+return parseText(await file.text());
 }
 
 function parseText(text){
@@ -336,30 +1006,41 @@ return obj;
 });
 }
 
+let latestRTGData={summary:[],bayCounts:[],rtgDetails:[]};
+
+function calculateAllRTGKPIs(rows,terminal,ratio20,ratio40){
+if(terminal!=="NGAPP"&&terminal!=="NGONN"&&(ratio20<2||(terminal!=="HRRJK"&&ratio40<2))){alert("Alternation ratio must be 2 or above.");return;}
+rows.forEach(r=>{r._yp=deriveYardFields(r,terminal);});
+const ops=calculateOperationalSummary(rows);
+const loading=calculateLoadingPoints(rows,terminal);
+const rehandles=calculateRehandles(rows,terminal);
+const rtg=calculateRTGMovesBeforeGantry(rows);
+const clashes=calculateYardClashes(rows,terminal);
+const twinFlow=terminal==="EGPSD"?calculateEGPSDTwinYardFlow(rows):null;
+const twin=calculateTwinPlanning(rows,terminal);
+const alternation=(terminal==="NGAPP"||terminal==="NGONN")?null:calculateAlternation(rows,ratio20,ratio40,terminal);
+return{rows,ops,loading,rehandles,rtg,clashes,twinFlow,twin,alternation,terminal};
+}
+
 function runAllKPIs(rows){
 const terminal=document.getElementById("terminal").value;
+onTerminalChange();
 const ratio20=Number(document.getElementById("ratio20").value);
 const ratio40=Number(document.getElementById("ratio40").value);
-if(ratio20<2||ratio40<2){alert("Alternation ratio must be 2 or above.");return;}
+const result=calculateAllRTGKPIs(rows,terminal,ratio20,ratio40);
+if(!result)return;
+const{ops,loading,rehandles,rtg,clashes,twinFlow,twin,alternation}=result;
 window.latestRTGRows=rows;
-const ops=calculateOperationalSummary(rows);
-const loading=calculateEGPSDLoadingPoints(rows);
-const rehandles=calculateEGPSDRehandles(rows);
-const rtg=calculateEGPSDRTGMovesBeforeGantry(rows);
-const clashes=calculateEGPSDYardClashes(rows);
-const twinFlow=calculateEGPSDTwinYardFlow(rows);
-const twin=calculateEGPSDTwinPlanning(rows);
-const alternation=calculateEGPSDAlternation(rows,ratio20,ratio40);
 latestRTGData=rtg;
-window.latestKPIExport={rows,ops,loading,rehandles,rtg,clashes,twinFlow,twin,alternation};
+window.latestKPIExport=result;
 renderOperationalSummary(ops);
 renderLoading(loading);
 renderRehandles(rehandles);
 renderRTG(rtg);
 renderYardClashes(clashes);
-renderTwinFlow(twinFlow);
+if(terminal==="EGPSD"){renderTwinFlow(twinFlow);}
 renderTwin(twin);
-renderAlternation(alternation);
+if(alternation)renderAlternation(alternation);
 document.getElementById("summaryCard").classList.remove("hidden");
 DETAILS_IDS.forEach(id=>document.getElementById(id).classList.add("hidden"));
 document.getElementById("status").innerText="Calculation completed successfully for "+terminal+".";
@@ -377,15 +1058,15 @@ const totalRestows=validMoveRows.filter(r=>{
 const c=clean(getValue(r,["Category"])).toUpperCase();
 return c==="RESTOW"||c==="THROUGH";
 }).length;
-const moveTimes=validMoveRows.map(r=>Number(getValue(r,["Move Time","Time/Date"]))).filter(v=>!Number.isNaN(v)&&v>0);
+const moveTimes=validMoveRows.map(getMoveTimeSerial).filter(v=>v!==null);
 let operationsHours=0;
 if(moveTimes.length>0)operationsHours=(Math.max(...moveTimes)-Math.min(...moveTimes))*24;
 const plannedPortHours=operationsHours+1.5;
 const craneBuckets={};
 validMoveRows.forEach(r=>{
 const crane=clean(getValue(r,["Pow Name","P.O.W.","P.O.W","POW Name","POW","QC","Crane","Crane ID"]));
-const t=Number(getValue(r,["Move Time","Time/Date"]));
-if(!crane||Number.isNaN(t)||t<=0)return;
+const t=getMoveTimeSerial(r);
+if(!crane||t===null)return;
 if(!craneBuckets[crane])craneBuckets[crane]=[];
 craneBuckets[crane].push(t);
 });
@@ -409,131 +1090,64 @@ document.getElementById("ciPlanned").innerText=r.ciPlanned.toFixed(2);
 document.getElementById("cmph").innerText=r.cmph.toFixed(2);
 }
 
-function getLoadFromYardEGPSD(row){
-const moveKind=clean(getValue(row,["Move Kind"]));
-const moveFrom=clean(getValue(row,["Move From"])).toUpperCase();
-if(moveKind==="Discharge")return"EC";
-if(moveFrom.substring(0,1)==="Z")return"Yes";
-if(moveFrom.length===7){
-if(moveFrom.substring(2,3)==="M"||moveFrom.substring(0,1)==="3"||moveFrom.substring(0,1)==="P")return"No";
-return"Yes";
-}
-return"No";
-}
-
-function getYardPositionEGPSD(row){
-const moveKind=clean(getValue(row,["Move Kind"]));
-const category=clean(getValue(row,["Category"])).toUpperCase();
-const moveFromRaw=getValue(row,["Move From"])===undefined||getValue(row,["Move From"])===null?"":String(getValue(row,["Move From"]));
-const moveFrom=clean(moveFromRaw).toUpperCase();
-if(moveKind==="Discharge")return"EC";
-if(category!=="RESTOW"&&moveFrom.length>6&&moveFrom.length<9&&moveFrom.substring(0,1)!=="P")return moveFrom;
-return"Heap Area";
-}
-
-function getYardBlockEGPSD(row){
-const moveFrom=clean(getValue(row,["Move From"])).toUpperCase();
-const yardPosition=getYardPositionEGPSD(row);
-if(yardPosition.length===8)return moveFrom.substring(0,3);
-if(yardPosition.length===7&&moveFrom.substring(0,1)!=="P")return moveFrom.substring(0,3);
-return"HP";
-}
-
-function getYardBayEGPSD(row){
-const loadFromYard=getLoadFromYardEGPSD(row);
-const yardPosition=getYardPositionEGPSD(row);
-if(loadFromYard==="Yes")return yardPosition.substring(0,5);
-return"HP";
-}
-
-function getYardBlockBayRowEGPSD(row){
-const moveFrom=clean(getValue(row,["Move From"])).toUpperCase();
-const yardPosition=getYardPositionEGPSD(row);
-if(yardPosition.length===8)return moveFrom.substring(0,3);
-if(yardPosition.length===7&&moveFrom.substring(0,1)!=="P")return moveFrom.substring(0,6);
-return"HP";
-}
-
-function getYardTierEGPSD(row){
-const yardPosition=getYardPositionEGPSD(row);
-if(yardPosition!=="Heap Area"&&yardPosition!=="EC")return Number(yardPosition.slice(-1));
-return null;
-}
-
-function isValidYardPositionEGPSD(row){
-const moveKind=clean(getValue(row,["Move Kind"])).toUpperCase();
-const category=clean(getValue(row,["Category"])).toUpperCase();
-const moveFrom=clean(getValue(row,["Move From"])).toUpperCase();
-if(moveKind==="DISCHARGE")return false;
-if(category==="RESTOW")return false;
-if(moveFrom.length<7||moveFrom.length>8)return false;
-if(moveFrom.substring(0,1)==="P")return false;
-if(moveFrom.length===7){
-if(moveFrom.substring(2,3)==="M"||moveFrom.substring(0,1)==="3"||moveFrom.substring(0,1)==="P")return false;
-}
-return true;
-}
-
 function excelSerialToDate(serial){
 const n=Number(serial);
-if(!isFinite(n)||n===0)return null;
-const excelEpoch=new Date(Date.UTC(1899,11,30));
-return new Date(excelEpoch.getTime()+n*24*60*60*1000);
+if(!Number.isFinite(n)||n<=0)return null;
+const utcDate=new Date(EXCEL_EPOCH_UTC+Math.round(n*DAY_MS));
+return new Date(utcDate.getUTCFullYear(),utcDate.getUTCMonth(),utcDate.getUTCDate(),utcDate.getUTCHours(),utcDate.getUTCMinutes(),utcDate.getUTCSeconds(),utcDate.getUTCMilliseconds());
 }
 
 function excelSerialDateToHour(value){
-if(value===null||value===undefined||value==="")return"";
-if(!isNaN(Number(value))){
 const d=excelSerialToDate(value);
 if(!d)return"";
-d.setUTCMinutes(0,0,0);
-return d.toISOString().slice(0,13);
-}
-const d=new Date(value);
-if(isNaN(d.getTime()))return"";
-d.setMinutes(0,0,0);
-return d.toISOString().slice(0,13);
+const year=d.getFullYear(),month=String(d.getMonth()+1).padStart(2,"0"),day=String(d.getDate()).padStart(2,"0"),hour=String(d.getHours()).padStart(2,"0");
+return `${year}-${month}-${day}T${hour}`;
 }
 
+const MONTH_ABBR = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 function hourText(serial){
-const d=excelSerialToDate(serial);
-if(!d)return"";
-const day=String(d.getUTCDate()).padStart(2,"0");
-const mon=MONTH_ABBR[d.getUTCMonth()];
-const hr=String(d.getUTCHours()).padStart(2,"0");
-return `${day}${mon}${hr}`;
+return excelSerialDateToHour(serial);
 }
 
-function parseDateTime(value){
-if(value instanceof Date)return value;
-const text=clean(value);
-if(!isNaN(Number(text))&&Number(text)>30000)return new Date((Number(text)-25569)*86400*1000);
-const d=new Date(text);
-if(!isNaN(d.getTime()))return d;
-return null;
-}
-
-function getEgyptSystemDateTime(d){return new Date(d.getTime()+60*60*1000);}
 function formatDateTime(d){
 if(!d)return"";
-const adjusted=getEgyptSystemDateTime(d);
-return adjusted.toLocaleString("en-GB",{day:"2-digit",month:"short",year:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false}).replace(",","");
+const day=String(d.getDate()).padStart(2,"0"),month=MONTH_ABBR[d.getMonth()].slice(0,1)+MONTH_ABBR[d.getMonth()].slice(1).toLowerCase(),year=String(d.getFullYear()).slice(-2),hour=String(d.getHours()).padStart(2,"0"),minute=String(d.getMinutes()).padStart(2,"0");
+return `${day} ${month} ${year} ${hour}:${minute}`;
 }
 function formatClashWindow(start,end){return `${formatDateTime(start)} → ${formatDateTime(end)}`;}
-function getAdjustedHourStart(d){const adjusted=getEgyptSystemDateTime(d);adjusted.setMinutes(0,0,0);return adjusted;}
+function getMoveHourStart(d){const start=new Date(d.getTime());start.setMinutes(0,0,0);return start;}
 function getHourKeyFromDate(d){
-const adjusted=getAdjustedHourStart(d);
-return adjusted.getFullYear()+"-"+String(adjusted.getMonth()+1).padStart(2,"0")+"-"+String(adjusted.getDate()).padStart(2,"0")+"-"+String(adjusted.getHours()).padStart(2,"0");
+const start=getMoveHourStart(d);
+return start.getFullYear()+"-"+String(start.getMonth()+1).padStart(2,"0")+"-"+String(start.getDate()).padStart(2,"0")+"-"+String(start.getHours()).padStart(2,"0");
 }
 function getSystemHourLabel(d){
-const adjusted=getAdjustedHourStart(d);
-let bucketHour=adjusted.getHours()+1;
+const start=getMoveHourStart(d);
+let bucketHour=start.getHours()+1;
 if(bucketHour===24)bucketHour=0;
 return"+H"+String(bucketHour).padStart(2,"0")+"00";
 }
 
-function calculateEGPSDLoadingPoints(rows){
-const grouped={};
+/* ===== LOADING POINTS ===== (algorithm unchanged across terminals; only
+   row._yp.isValidYard / row._yp.loadingPoint differ by terminal) */
+function addLoadingPointObservation(grouped,key,loadingPoint,yardBlock){
+if(!grouped[key])grouped[key]={points:new Set(),sources:{}};
+const group=grouped[key];
+group.points.add(loadingPoint);
+if(!group.sources[loadingPoint])group.sources[loadingPoint]=new Set();
+if(yardBlock&&yardBlock!=="HP")group.sources[loadingPoint].add(yardBlock);
+return group;
+}
+
+function getLoadingPointDisplay(group,terminal){
+return[...group.points].sort().map(point=>{
+if(terminal!=="MAPTM")return point;
+const blocks=[...(group.sources[point]||[])].sort();
+return blocks.length?`${point} (${blocks.join(",")})`:point;
+}).join(", ");
+}
+
+function calculateLoadingPoints(rows,terminal){
+const grouped={},queueGrouped={};
 rows.forEach(row=>{
 const moveKind=clean(getValue(row,["Move Kind"])).toUpperCase();
 const isOOG=clean(getValue(row,["Unit Is OOG?","Unit is OOG?"])).toLowerCase();
@@ -541,45 +1155,68 @@ const isHazardous=clean(getValue(row,["Unit is Hazardous?","Unit Is Hazardous?"]
 if(moveKind!=="LOAD")return;
 if(isOOG==="true")return;
 if(isHazardous==="true")return;
-if(!isValidYardPositionEGPSD(row))return;
-const moveFrom=clean(getValue(row,["Move From"]));
+if(!row._yp.isValidYard)return;
 const qc=clean(getValue(row,["Pow Name","P.O.W.","P.O.W","POW Name","POW","QC","Crane"]));
-const hour=excelSerialDateToHour(getValue(row,["Move Time","Time/Date"]));
-if(!qc||!hour)return;
-const loadingPoint=moveFrom.substring(0,3).toUpperCase();
-const key=`${hour}|${qc}`;
-if(!grouped[key])grouped[key]=new Set();
-grouped[key].add(loadingPoint);
+const hour=excelSerialDateToHour(getMoveTimeSerial(row));
+if(!hour)return;
+const loadingPoint=row._yp.loadingPoint;
+if(!loadingPoint||loadingPoint==="HP")return;
+const yardBlock=clean(row._yp.yardBlock);
+if(qc)addLoadingPointObservation(grouped,`${hour}|${qc}`,loadingPoint,yardBlock);
+const queue=clean(getValue(row,["Queue","Work Queue"]));
+if(queue){
+const queueGroup=addLoadingPointObservation(queueGrouped,queue,loadingPoint,yardBlock);
+if(!queueGroup.firstHour||hour<queueGroup.firstHour)queueGroup.firstHour=hour;
+if(!queueGroup.lastHour||hour>queueGroup.lastHour)queueGroup.lastHour=hour;
+}
 });
-const details=Object.entries(grouped).map(([key,points])=>{
+const details=Object.entries(grouped).map(([key,group])=>{
 const[Hour,QC]=key.split("|");
-return{Hour,QC,LP:points.size,YardBlocks:[...points].sort().join(", ")};
+return{Hour,QC,LP:group.points.size,YardBlocks:getLoadingPointDisplay(group,terminal)};
 }).sort((a,b)=>a.Hour.localeCompare(b.Hour)||a.QC.localeCompare(b.QC));
+const queueDetails=Object.entries(queueGrouped).map(([Queue,group])=>({
+Queue,firstHour:group.firstHour,lastHour:group.lastHour,LP:group.points.size,YardBlocks:getLoadingPointDisplay(group,terminal)
+})).sort((a,b)=>a.Queue.localeCompare(b.Queue));
 const avg=details.length?details.reduce((s,x)=>s+x.LP,0)/details.length:0;
-return{avgLoadingPoints:Number(avg.toFixed(2)),hourQCObservations:details.length,details};
+const avgPerQueue=queueDetails.length?queueDetails.reduce((s,x)=>s+x.LP,0)/queueDetails.length:0;
+return{avgLoadingPoints:Number(avg.toFixed(2)),avgLoadingPointsPerQueue:Number(avgPerQueue.toFixed(2)),hourQCObservations:details.length,details,queueDetails};
 }
 
 function renderLoading(result){
 document.getElementById("loadingKPI").innerText=result.avgLoadingPoints.toFixed(2);
-document.getElementById("loadingObs").innerText="Hour + QC observations: "+result.hourQCObservations.toLocaleString();
+applyTargetColor("loadingKPI","loading",result.avgLoadingPoints);
+document.getElementById("loadingObs").innerText="Active Points: "+result.avgLoadingPointsPerQueue.toFixed(2);
+const allRows=(window.latestKPIExport&&window.latestKPIExport.rows)||[];
 const tbody=document.getElementById("loadingTable");
 tbody.innerHTML="";
 result.details.forEach(r=>{
 const tr=document.createElement("tr");
-tr.innerHTML=`<td>${escapeHtml(r.Hour)}</td><td>${escapeHtml(r.QC)}</td><td><b>${r.LP}</b></td><td>${escapeHtml(r.YardBlocks)}</td>`;
+const systemHour=getDisplaySystemHourLabel(r.Hour,allRows);
+const targetClass=getTargetClass("loading",r.LP);
+tr.innerHTML=`<td>${escapeHtml(r.Hour)}</td><td style="font-weight:700;color:#003b5c">${escapeHtml(systemHour)}</td><td>${escapeHtml(r.QC)}</td><td class="${targetClass}"><b>${r.LP}</b></td><td>${escapeHtml(r.YardBlocks)}</td>`;
 tbody.appendChild(tr);
+});
+const queueBody=document.getElementById("loadingQueueTableBody");
+queueBody.innerHTML="";
+(result.queueDetails||[]).forEach(r=>{
+const tr=document.createElement("tr");
+const firstSystemHour=getDisplaySystemHourLabel(r.firstHour,allRows),lastSystemHour=getDisplaySystemHourLabel(r.lastHour,allRows);
+const interval=`${firstSystemHour} → ${lastSystemHour}`;
+const targetClass=getTargetClass("loading",r.LP);
+tr.innerHTML=`<td style="font-weight:700;color:#003b5c">${escapeHtml(interval)}</td><td>${escapeHtml(r.Queue)}</td><td class="${targetClass}"><b>${r.LP}</b></td><td>${escapeHtml(r.YardBlocks)}</td>`;
+queueBody.appendChild(tr);
 });
 }
 
-function getRehandleReasonEGPSD(item){
-let reason="Normal";
-if(item.isHazardous)reason="IMO";
-if(item.isSpecial)reason="Special Stow";
+/* ===== REHANDLES ===== (algorithm unchanged; fields come from row._yp) */
+function getRehandleReason(item,causingItem){
+const reasons=[];
+if(item.isHazardous)reasons.push("IMO");
+if(item.isSpecial)reasons.push("Special Stow");
 const category=clean(item.category).toUpperCase();
-if(category==="RESTOW"||category==="THROUGH"){
-reason += " / " + (category==="RESTOW" ? "Restow" : "Through");
-}
-return reason;
+if(category==="RESTOW"||category==="THROUGH")reasons.push("Restow");
+if(causingItem&&item.pod&&causingItem.pod&&item.pod!==causingItem.pod)reasons.push("Different POD");
+return reasons.length?reasons.join(" / "):"Normal";
 }
 
 function getVerifiedPosition(moveFrom,currentPosition){
@@ -587,32 +1224,35 @@ if(clean(moveFrom)&&clean(currentPosition)&&clean(moveFrom).toUpperCase()===clea
 return"Planned";
 }
 
-function calculateEGPSDRehandles(rows){
+function calculateRehandles(rows,terminal){
 const validLoads=rows.filter(r=>{
 const moveKind=clean(getValue(r,["Move Kind"]));
 const isOOG=clean(getValue(r,["Unit Is OOG?","Unit is OOG?"])).toUpperCase()==="TRUE";
-const loadFromYard=getLoadFromYardEGPSD(r);
-const yardPosition=getYardPositionEGPSD(r);
-const rowKey=getYardBlockBayRowEGPSD(r);
-const tier=getYardTierEGPSD(r);
-const valid=moveKind==="Load"&&!isOOG&&loadFromYard==="Yes"&&yardPosition!=="Heap Area"&&yardPosition!=="EC"&&rowKey!=="HP"&&tier!==null&&tier>=1&&tier<=6;
-return valid;
+const yp=r._yp;
+const rowKey=yp.yardBlockRow;
+const tier=yp.yardTier;
+// Rehandles cover every valid yard area, whether it is operated by RTG, EH or RS.
+// RTG-only eligibility remains separate and is not used by this KPI.
+return moveKind==="Load"&&!isOOG&&yp.isValidYard&&yp.yardPosition!=="Heap Area"&&yp.yardPosition!=="EC"&&rowKey!=="HP"&&tier!==null&&tier>=1&&tier<=6;
 });
 const groups={};
 validLoads.forEach(r=>{
-const rowKey=getYardBlockBayRowEGPSD(r);
-const tier=getYardTierEGPSD(r);
-const moveTime=Number(getValue(r,["Move Time","Time/Date"]));
+const rowKey=r._yp.yardBlockRow;
+const tier=r._yp.yardTier;
+const moveTime=getMoveTimeSerial(r);
 const container=getContainer(r);
 if(!groups[rowKey])groups[rowKey]=[];
 groups[rowKey].push({
 rowKey,tier,moveTime,container,
-moveTimeRaw:clean(getValue(r,["Move Time","Time/Date"])),
+moveTimeRaw:clean(getValue(r,["Move Time"])),
 moveFrom:clean(getValue(r,["Move From"])),
 currentPosition:clean(getValue(r,["Current Position","Current position"])),
 category:clean(getValue(r,["Category"])),
+pod:clean(getValue(r,["Unit POD","POD"])).toUpperCase(),
 isHazardous:clean(getValue(r,["Unit is Hazardous?","Unit Is Hazardous?"])).toUpperCase()==="TRUE",
-isSpecial:clean(getValue(r,["Unit is Special Stow?","Unit Is Special Stow?"])).toUpperCase()==="TRUE"
+// This WI field can contain an operational special-stow code (for example CBK,
+// CHA, FLX or LAR), not only the Boolean value TRUE.
+isSpecial:isSpecialStowValue(getValue(r,["Unit is Special Stow?","Unit Is Special Stow?"]))
 });
 });
 const rehandlesList=[];
@@ -633,9 +1273,8 @@ rehandlesList.push({
 rowKey,
 container:rehandledContainer.container,
 verifiedPosition:getVerifiedPosition(rehandledContainer.moveFrom,rehandledContainer.currentPosition),
-reason:getRehandleReasonEGPSD(rehandledContainer),
-tier:rehandledContainer.tier,
-moveTime:rehandledContainer.moveTimeRaw
+reason:getRehandleReason(rehandledContainer,causingContainer),
+tier:rehandledContainer.tier
 });
 }
 }
@@ -652,19 +1291,36 @@ rehandlesList
 
 function renderRehandles(result){
 document.getElementById("rehandlesKPI").innerText=result.rehandlesPercent.toFixed(2)+"%";
+applyTargetColor("rehandlesKPI","rehandles",result.rehandlesPercent);
 document.getElementById("rehandlesObs").innerText="Load from Yard: "+result.loadFromYard.toLocaleString()+" | Rehandles: "+result.rehandlesCount.toLocaleString();
-const tbody=document.getElementById("rehandlesTable");
-tbody.innerHTML="";
-result.rehandlesList.forEach(r=>{
-const tr=document.createElement("tr");
-tr.innerHTML=`<td>${escapeHtml(r.rowKey)}</td><td>${escapeHtml(r.container)}</td><td>${escapeHtml(r.verifiedPosition)}</td><td>${escapeHtml(r.reason)}</td><td>${escapeHtml(r.tier)}</td><td>${escapeHtml(r.moveTime)}</td>`;
-tbody.appendChild(tr);
-});
+window.latestRehandleRows=result.rehandlesList||[];
+document.getElementById("rehandlesVerifiedFilter").value="";
+renderRehandleDetailRows(window.latestRehandleRows);
 }
 
+function renderRehandleDetailRows(rows){
+const tbody=document.getElementById("rehandlesTable");
+tbody.innerHTML="";
+rows.forEach(r=>{
+const tr=document.createElement("tr");
+tr.innerHTML=`<td>${escapeHtml(r.rowKey)}</td><td>${escapeHtml(r.container)}</td><td>${escapeHtml(r.verifiedPosition)}</td><td>${escapeHtml(r.reason)}</td><td>${escapeHtml(r.tier)}</td>`;
+tbody.appendChild(tr);
+});
+const total=(window.latestRehandleRows||[]).length;
+document.getElementById("rehandlesFilterCount").innerText=`Showing ${rows.length.toLocaleString()} of ${total.toLocaleString()}`;
+}
+
+function filterRehandlesDetails(){
+const selected=clean(document.getElementById("rehandlesVerifiedFilter").value);
+const rows=(window.latestRehandleRows||[]).filter(r=>!selected||r.verifiedPosition===selected);
+renderRehandleDetailRows(rows);
+}
+
+/* ===== RTG MOVES BEFORE GANTRY ===== (algorithm unchanged; uses row._yp for eligibility) */
 function midBayNumber(yardBay){
 const s=clean(yardBay);
-const n=parseInt(s.substring(2,4),10);
+const match=s.match(/(\d+)$/);
+const n=match?parseInt(match[1],10):NaN;
 return Number.isNaN(n)?null:n;
 }
 
@@ -672,6 +1328,8 @@ function segmentCounts(groupedRows){
 const rows=groupedRows.slice().sort((a,b)=>{
 const h=clean(a.Hours).localeCompare(clean(b.Hours));
 if(h!==0)return h;
+const n1=midBayNumber(a["Yard  Bay"]),n2=midBayNumber(b["Yard  Bay"]);
+if(n1!==null&&n2!==null&&n1!==n2)return n1-n2;
 return clean(a["Yard  Bay"]).localeCompare(clean(b["Yard  Bay"]));
 });
 const segments=[];
@@ -713,30 +1371,26 @@ detailRows.push({yardBay:bay,segmentCount:cnt,rule:"New bay segment"});
 return{segments,detailRows};
 }
 
-function calculateEGPSDRTGMovesBeforeGantry(rows){
+function calculateRTGMovesBeforeGantry(rows){
 rows.forEach(r=>{
-r["Load from yard "]=getLoadFromYardEGPSD(r);
-r["Yard Position"]=getYardPositionEGPSD(r);
-r["Yard Block"]=getYardBlockEGPSD(r);
-r["Yard  Bay"]=r["Load from yard "]==="Yes"?clean(r["Yard Position"]).substring(0,5):"HP";
-r["Hours"]=hourText(getValue(r,["Move Time","Time/Date"]));
+r["Hours"]=hourText(getMoveTimeSerial(r));
 r["_OOG"]=boolVal(getValue(r,["Unit Is OOG?","Unit is OOG?"]));
 r["_IMO"]=boolVal(getValue(r,["Unit is Hazardous?","Unit Is Hazardous?"]));
 });
-const filtered=rows.filter(r=>r["Load from yard "]==="Yes"&&!r["_OOG"]&&!r["_IMO"]&&r["Yard  Bay"]!=="HP");
+const filtered=rows.filter(r=>r._yp.isRTGEligible&&!r._OOG&&!r._IMO&&r._yp.yardBay!=="HP");
 const vesselId=clean(rows[0]?.["Carrier"]);
 const vesselName=clean(rows[0]?.["Carrier Name"]);
 const bayCountsMap=new Map();
 filtered.forEach(r=>{
-const bay=r["Yard  Bay"];
+const bay=r._yp.yardBay;
 bayCountsMap.set(bay,(bayCountsMap.get(bay)||0)+1);
 });
 const bayCounts=Array.from(bayCountsMap.entries()).map(([bay,count])=>({"Vessel ID":vesselId,"Vessel Name":vesselName,"Yard  Bay":bay,"Move per Bay Count":count}));
 const movePerBay=bayCounts.length?bayCounts.reduce((s,r)=>s+r["Move per Bay Count"],0)/bayCounts.length:0;
 const groupMap=new Map();
 filtered.forEach(r=>{
-const key=`${r["Yard Block"]}||${r["Hours"]}||${r["Yard  Bay"]}`;
-if(!groupMap.has(key))groupMap.set(key,{yardBlock:r["Yard Block"],Hours:r["Hours"],"Yard  Bay":r["Yard  Bay"],cnt:0});
+const key=`${r._yp.yardBlock}||${r["Hours"]}||${r._yp.yardBay}`;
+if(!groupMap.has(key))groupMap.set(key,{yardBlock:r._yp.yardBlock,Hours:r["Hours"],"Yard  Bay":r._yp.yardBay,cnt:0});
 groupMap.get(key).cnt+=1;
 });
 const byBlock=new Map();
@@ -767,139 +1421,200 @@ return{summary,bayCounts,rtgDetails,rtg,movePerBay,efficiencyPercent:utilisation
 
 function renderRTG(result){
 document.getElementById("rtgMovesBeforeGantryKPI").innerText=result.rtg.toFixed(2);
+applyTargetColor("rtgMovesBeforeGantryKPI","rtgMoves",result.rtg);
 document.getElementById("rtgObs").innerText="Move per Bay: "+result.movePerBay.toFixed(2)+" | Efficiency: "+result.efficiencyPercent.toFixed(2)+"%";
 showRTGDetail("segments");
 }
 
 function showRTGDetail(type){
 const table=document.getElementById("rtgDetailTable");
-const rows=type==="summary"?latestRTGData.summary:latestRTGData.rtgDetails;
-renderGenericTable(table,rows);
+const rows=type==="summary"?latestRTGData.summary:(type==="bays"?latestRTGData.bayCounts:latestRTGData.rtgDetails);
+renderGenericTable(table,rows,(column,value)=>{
+if(column==="RTG Moves Before Gantry"||column==="Segment Count")return getTargetClass("rtgMoves",value);
+return"";
+});
 }
 
-function isSpecialBlock(block){
+/* ===== YARD CLASHES ===== (algorithm unchanged; physical bay ordering falls back to
+   plain numeric distance for terminals other than EGPSD — see header note) */
+const EGPSD_SPECIAL_BAY_ORDER = ["01","03","05","07","09","11","13","15","17","19","21","23","25","27","29","31","33","35","37","39","91","93","95","41","43","45","47","49","51","53","55","57","59","61","63","65","67","69","71","73","75","77","79","81","83","85"];
+const CLASH_DISTANCE_LIMIT = 12;
+const SAME_BAY_MIN_GAP_MINUTES = 2;
+const HRRJK_EHRS_BLOCKS = new Set(["1E","2E","3E","4E"]);
+const HRRJK_EHRS_WINDOW_MINUTES = 15;
+
+function isSpecialBlock(block,terminal){
+if(terminal!=="EGPSD")return false;
 const prefix=clean(block).substring(0,2);
-return["01","02","03","04","05","06","07","08"].includes(prefix);
+return isEGPSDRTGBlock(block)&&["01","02","03","04","05","06","07","08"].includes(prefix);
 }
 function getBayNo(yardBay){
-const match=clean(yardBay).toUpperCase().match(/(\d{2})$/);
+const match=clean(yardBay).toUpperCase().match(/(\d+)$/);
 return match?match[1]:"";
 }
-function getBayIndex(block,yardBay){
+function getBayIndex(block,yardBay,terminal){
 const bayNo=getBayNo(yardBay);
 if(!bayNo)return null;
-if(isSpecialBlock(block)){
+if(isSpecialBlock(block,terminal)){
 const idx=EGPSD_SPECIAL_BAY_ORDER.indexOf(bayNo);
 return idx===-1?null:idx;
 }
 return Number(bayNo);
 }
-function getPhysicalDistance(block,bay1,bay2){
-const i1=getBayIndex(block,bay1);
-const i2=getBayIndex(block,bay2);
+function getPhysicalDistance(block,bay1,bay2,terminal){
+const i1=getBayIndex(block,bay1,terminal);
+const i2=getBayIndex(block,bay2,terminal);
 if(i1===null||i2===null)return 999;
 return Math.abs(i1-i2);
 }
-function getGroupDistance(a,b){
+function getGroupDistance(a,b,terminal){
 let minDistance=999;
 a.yardBays.forEach(bayA=>b.yardBays.forEach(bayB=>{
-const d=getPhysicalDistance(a.yardBlock,bayA,bayB);
+const d=getPhysicalDistance(a.yardBlock,bayA,bayB,terminal);
 if(d<minDistance)minDistance=d;
 }));
 return minDistance;
-}
-function getMoveFromClash(row){return clean(getValue(row,["Move From","Move from","MoveFrom","From Position"])).toUpperCase();}
-function getYardPositionClash(row){
-const moveFrom=getMoveFromClash(row);
-if(moveFrom&&moveFrom.length>=7&&moveFrom.substring(0,1)!=="P")return moveFrom;
-return"Heap Area";
-}
-function getYardBlockClash(row){
-const pos=getYardPositionClash(row);
-if(pos!=="Heap Area"&&pos.length>=5)return pos.substring(0,3);
-return"HP";
-}
-function getYardBayClash(row){
-const pos=getYardPositionClash(row);
-if(pos!=="Heap Area"&&pos.length>=5)return pos.substring(0,5);
-return"HP";
-}
-function getLoadFromYardClash(row){
-const moveFrom=getMoveFromClash(row);
-if(moveFrom.length>=7&&moveFrom.substring(0,1)!=="P")return"Yes";
-return"No";
 }
 function is20ftClash(row){
 const type=clean(getValue(row,["Type","ISO","ISO Type","Equipment Type","Container Type","Length"])).toUpperCase();
 return type.startsWith("2")||type.includes("20");
 }
-function merge20ftTwinGroups(groups){
-const byPow={};
-groups.forEach(g=>{
-const key=g.hourKey+"|"+g.yardBlock+"|"+g.pow;
-if(!byPow[key])byPow[key]=[];
-byPow[key].push(g);
+function areAdjacent20ftTwinBays(block,bay1,bay2,terminal){
+if(isSpecialBlock(block,terminal))return getPhysicalDistance(block,bay1,bay2,terminal)===1;
+const n1=Number(getBayNo(bay1)),n2=Number(getBayNo(bay2));
+return Number.isFinite(n1)&&Number.isFinite(n2)&&Math.abs(n1-n2)===2;
+}
+function getClashYardRow(yp){
+const position=clean(yp.yardPosition),bay=clean(yp.yardBay),blockRow=clean(yp.yardBlockRow);
+if(position.startsWith(bay)&&position.length>bay.length+1)return position.slice(bay.length,-1);
+if(blockRow.startsWith(bay)&&blockRow.length>bay.length)return blockRow.slice(bay.length);
+return"";
+}
+function markRTGTwinPickMoves(moves,terminal){
+const pools={};
+moves.forEach((move,index)=>{
+if(!move.is20ft||!move.yardRow||move.yardTier===null)return;
+const key=[move.hourKey,move.yardBlock,move.pow,move.yardRow,move.yardTier].join("|");
+if(!pools[key])pools[key]=[];
+pools[key].push(index);
 });
-let mergedAll=[];
-Object.values(byPow).forEach(list=>{
-list.sort((a,b)=>(getBayIndex(a.yardBlock,a.yardBay)??999)-(getBayIndex(b.yardBlock,b.yardBay)??999));
-let used=new Set();
-for(let i=0;i<list.length;i++){
-if(used.has(i))continue;
-let base={...list[i]};
-base.yardBays=[...list[i].yardBays];
-base.containerIds=[...list[i].containerIds];
-used.add(i);
-for(let j=i+1;j<list.length;j++){
-if(used.has(j))continue;
-const candidate=list[j];
-const sameCrane=base.pow===candidate.pow;
-const both20ft=base.is20ft&&candidate.is20ft;
-const adjacent=getGroupDistance(base,candidate)===1;
-if(sameCrane&&both20ft&&adjacent){
-base.moves+=candidate.moves;
-base.yardBays.push(...candidate.yardBays);
-base.containerIds.push(...candidate.containerIds);
-if(candidate.start<base.start)base.start=candidate.start;
-if(candidate.end>base.end)base.end=candidate.end;
-used.add(j);
+Object.values(pools).forEach(indices=>{
+indices.sort((a,b)=>moves[a].moveTime-moves[b].moveTime);
+const used=new Set();
+for(let p=0;p<indices.length;p++){
+const i=indices[p];if(used.has(i))continue;
+let best=null,bestGap=Infinity;
+for(let q=p+1;q<indices.length;q++){
+const j=indices[q];if(used.has(j)||!areAdjacent20ftTwinBays(moves[i].yardBlock,moves[i].yardBay,moves[j].yardBay,terminal))continue;
+const gap=Math.abs(moves[i].moveTime-moves[j].moveTime);
+if(gap<bestGap){best=j;bestGap=gap;}
 }
-}
-base.yardBay=[...new Set(base.yardBays)].join(" / ");
-mergedAll.push(base);
+if(best===null)continue;
+const bays=[moves[i].yardBay,moves[best].yardBay].sort((a,b)=>(getBayIndex(moves[i].yardBlock,a,terminal)??999)-(getBayIndex(moves[i].yardBlock,b,terminal)??999));
+const display=[...new Set(bays)].join(" / ");
+moves[i].feedingYardBay=display;moves[best].feedingYardBay=display;
+moves[i].feedingYardBays=[...new Set(bays)];moves[best].feedingYardBays=[...new Set(bays)];
+used.add(i);used.add(best);
 }
 });
-return mergedAll;
 }
 
-function calculateEGPSDYardClashes(rows){
+function getHRRJKRowIndex(row){
+const value=upper(row);
+if(/^\d+$/.test(value))return Number(value);
+if(/^[A-Z]$/.test(value))return value.charCodeAt(0)-64;
+return null;
+}
+
+function calculateHRRJKEHRSClashes(moves){
+const byBlock={};
+moves.forEach(move=>{
+if(!HRRJK_EHRS_BLOCKS.has(move.yardBlock))return;
+const bayNo=Number(getBayNo(move.yardBay)),rowIndex=getHRRJKRowIndex(move.yardRow);
+if(!Number.isFinite(bayNo)||rowIndex===null)return;
+if(!byBlock[move.yardBlock])byBlock[move.yardBlock]={};
+const key=move.yardBay+"|"+move.yardRow;
+if(!byBlock[move.yardBlock][key])byBlock[move.yardBlock][key]={yardBlock:move.yardBlock,yardBay:move.yardBay,bayNo,yardRow:move.yardRow,rowIndex,moves:[]};
+byBlock[move.yardBlock][key].moves.push(move);
+});
+const details=[];
+Object.values(byBlock).forEach(blockGroups=>{
+const positions=Object.values(blockGroups);
+for(let i=0;i<positions.length;i++){
+for(let j=i+1;j<positions.length;j++){
+const a=positions[i],b=positions[j];
+if(Math.abs(a.bayNo-b.bayNo)!==2||Math.abs(a.rowIndex-b.rowIndex)!==5)continue;
+let combined=[...a.moves.map(move=>({side:1,move})),...b.moves.map(move=>({side:2,move}))].sort((x,y)=>x.move.moveTime-y.move.moveTime);
+while(combined.length){
+const startTime=combined[0].move.moveTime.getTime();
+const cutoff=startTime+HRRJK_EHRS_WINDOW_MINUTES*60000;
+const windowMoves=combined.filter(item=>item.move.moveTime.getTime()<=cutoff);
+const side1=windowMoves.filter(item=>item.side===1).map(item=>item.move);
+const side2=windowMoves.filter(item=>item.side===2).map(item=>item.move);
+if(!side1.length||!side2.length){combined.shift();continue;}
+const used=new Set(windowMoves);
+combined=combined.filter(item=>!used.has(item));
+const all=[...side1,...side2].sort((x,y)=>x.moveTime-y.moveTime);
+const pow1=[...new Set(side1.map(move=>move.pow).filter(Boolean))].sort().join(" / ");
+const pow2=[...new Set(side2.map(move=>move.pow).filter(Boolean))].sort().join(" / ");
+const clashMoves=Math.min(side1.length,side2.length);
+details.push({
+hourKey:getHourKeyFromDate(all[0].moveTime),systemHour:getSystemHourLabel(all[0].moveTime),
+clashStart:all[0].moveTime,clashEnd:all[all.length-1].moveTime,
+yardBlock1:a.yardBlock,pow1,bay1:a.yardBay,moves1:side1.length,
+yardBlock2:b.yardBlock,pow2,bay2:b.yardBay,moves2:side2.length,clashMoves,
+status:"Counted Clash",clashType:"EH/RS",
+containerIds:all.map(move=>move.containerId).filter(Boolean).join(", "),
+containers:all.map(move=>({moveTime:move.moveTime,moveTimeSerial:move.moveTimeSerial,containerId:move.containerId,yardBlock:move.yardBlock,yardBay:move.yardBay,yardBlockRow:move.yardBlockRow,pow:move.pow,hourKey:getHourKeyFromDate(move.moveTime)})),
+reason:"HRRJK EH/RS: adjacent bays and rows 5 apart within 15 minutes"
+});
+}
+}
+}
+});
+return details;
+}
+
+function calculateYardClashes(rows,terminal){
 let moves=[];
 rows.forEach(row=>{
 const moveKind=clean(getValue(row,["Move Kind","MoveKind"]));
 const pow=clean(getValue(row,["P.O.W.","P.O.W","Pow Name","POW Name","POW","QC","Crane"]));
 const containerId=getContainer(row);
-const moveTime=parseDateTime(getValue(row,["Move Time","MoveTime","Move Date","Move Date Time","Hour","Hours","Time/Date"]));
-const yardBlock=getYardBlockClash(row);
-const yardBay=getYardBayClash(row);
-if(moveKind==="Load"&&getLoadFromYardClash(row)==="Yes"&&pow!==""&&moveTime&&yardBlock!=="HP"&&yardBay!=="HP"){
-moves.push({moveTime,pow,yardBlock,yardBay,containerId,is20ft:is20ftClash(row)});
+const moveTimeSerial=getMoveTimeSerial(row);
+const moveTime=excelSerialToDate(moveTimeSerial);
+const yardBlock=row._yp.yardBlock;
+const yardBay=row._yp.yardBay;
+const yardBlockRow=row._yp.yardBlockRow;
+const yardRow=getClashYardRow(row._yp);
+const yardTier=row._yp.yardTier;
+const isOOG=boolVal(getValue(row,["Unit Is OOG?","Unit is OOG?"]));
+const isHRRJKEHRSYard=terminal==="HRRJK"&&row._yp.isValidYard&&HRRJK_EHRS_BLOCKS.has(yardBlock);
+if(moveKind==="Load"&&(row._yp.isRTGEligible||isHRRJKEHRSYard)&&!isOOG&&pow!==""&&moveTime&&yardBlock!=="HP"&&yardBay!=="HP"){
+moves.push({moveTime,moveTimeSerial,pow,yardBlock,yardBay,yardBlockRow,yardRow,yardTier,containerId,is20ft:is20ftClash(row),feedingYardBay:yardBay,feedingYardBays:[yardBay]});
 }
 });
 moves.sort((a,b)=>a.moveTime-b.moveTime);
 moves.forEach(m=>{m.hourKey=getHourKeyFromDate(m.moveTime);m.systemHour=getSystemHourLabel(m.moveTime);});
 const totalLoadMoves=moves.length;
+const hrrjkEhrsMoves=terminal==="HRRJK"?moves.filter(move=>HRRJK_EHRS_BLOCKS.has(move.yardBlock)):[];
+if(terminal==="HRRJK")moves=moves.filter(move=>!HRRJK_EHRS_BLOCKS.has(move.yardBlock));
+// A valid RTG twin pickup is one feeding unit, not a clash between its two adjacent
+// 20ft bays. Pair only within the same POW, operational hour, yard row and tier;
+// each container can be used once, with the closest Move Time matched first.
+markRTGTwinPickMoves(moves,terminal);
 const summary={};
 moves.forEach(m=>{
-const key=[m.hourKey,m.yardBlock,m.pow,m.yardBay,m.is20ft?"20":"OTHER"].join("||");
-if(!summary[key])summary[key]={hourKey:m.hourKey,systemHour:m.systemHour,yardBlock:m.yardBlock,pow:m.pow,yardBay:m.yardBay,yardBays:[m.yardBay],moves:0,start:m.moveTime,end:m.moveTime,containerIds:[],is20ft:m.is20ft};
+const key=[m.hourKey,m.yardBlock,m.pow,m.feedingYardBay,m.is20ft?"20":"OTHER"].join("||");
+if(!summary[key])summary[key]={hourKey:m.hourKey,systemHour:m.systemHour,yardBlock:m.yardBlock,pow:m.pow,yardBay:m.feedingYardBay,yardBays:[...m.feedingYardBays],moves:0,start:m.moveTime,end:m.moveTime,containerIds:[],containerDetails:[],is20ft:m.is20ft};
 summary[key].moves++;
 if(m.containerId)summary[key].containerIds.push(m.containerId);
+summary[key].containerDetails.push({moveTime:m.moveTime,moveTimeSerial:m.moveTimeSerial,containerId:m.containerId,yardBlock:m.yardBlock,yardBay:m.yardBay,yardBlockRow:m.yardBlockRow,pow:m.pow,hourKey:m.hourKey});
 if(m.moveTime<summary[key].start)summary[key].start=m.moveTime;
 if(m.moveTime>summary[key].end)summary[key].end=m.moveTime;
 });
-const mergedGroups=merge20ftTwinGroups(Object.values(summary));
 const grouped={};
-mergedGroups.forEach(s=>{
+Object.values(summary).forEach(s=>{
 const key=s.hourKey+"||"+s.yardBlock;
 if(!grouped[key])grouped[key]=[];
 grouped[key].push(s);
@@ -910,7 +1625,6 @@ Object.values(grouped).forEach(group=>{
 group.sort((a,b)=>a.start-b.start);
 const cranes=new Set(group.map(x=>x.pow));
 if(cranes.size<=1)return;
-let usedGroups=new Set();
 for(let i=0;i<group.length;i++){
 for(let j=i+1;j<group.length;j++){
 const a=group[i],b=group[j];
@@ -921,82 +1635,127 @@ if(sameDisplayedBay){
 const gapAB=(b.start-a.end)/60000;
 const gapBA=(a.start-b.end)/60000;
 const separated=gapAB>=SAME_BAY_MIN_GAP_MINUTES||gapBA>=SAME_BAY_MIN_GAP_MINUTES;
-if(!separated){isClash=true;reason="Same bay feeding multiple cranes without 2 min separation";}
+if(!separated){isClash=true;reason="Same Yard Bay feeding multiple POWs without 2-minute separation";}
 }else{
-const distance=getGroupDistance(a,b);
-if(distance<CLASH_DISTANCE_LIMIT){isClash=true;reason="Feeding bays are closer than 12";}
+const distance=getGroupDistance(a,b,terminal);
+if(distance<CLASH_DISTANCE_LIMIT){isClash=true;reason="Feeding Bays are Exact / closer then 2 40ft Bays";}
 }
 if(isClash){
 totalPotentialClashes++;
 const clashMoves=Math.min(a.moves,b.moves);
 const lowerMoves=Math.min(a.moves,b.moves);
-const counted=lowerMoves>MIN_COUNTED_CLASH_MOVES;
+// EGPSD requires at least 4 containers on the smaller feeding side; all other
+// RTG terminals require at least 2. Values below the terminal threshold remain
+// visible as Potential Clashes but do not enter the KPI numerator.
+const countedThreshold=terminal==="EGPSD"?4:2;
+const counted=lowerMoves>=countedThreshold;
 if(counted){
-const keyA=`${a.hourKey}|${a.yardBlock}|${a.pow}|${a.yardBay}`;
-const keyB=`${b.hourKey}|${b.yardBlock}|${b.pow}|${b.yardBay}`;
-if(!usedGroups.has(keyA)){totalClashMoves+=a.moves;usedGroups.add(keyA);}
-if(!usedGroups.has(keyB)){totalClashMoves+=b.moves;usedGroups.add(keyB);}
+// The clash-container numerator is the smaller feeding side.
+// Example: 15 moves versus 8 moves contributes 8 clash containers.
+totalClashMoves+=clashMoves;
 totalClashes++;
 }
 details.push({
+hourKey:a.hourKey,
 systemHour:a.systemHour,
-clashWindow:formatClashWindow(a.start>b.start?a.start:b.start,a.end<b.end?a.end:b.end),
-yardBlock:a.yardBlock,pow1:a.pow,bay1:a.yardBay,moves1:a.moves,
-pow2:b.pow,bay2:b.yardBay,moves2:b.moves,clashMoves,
+clashStart:a.start>b.start?a.start:b.start,
+clashEnd:a.end<b.end?a.end:b.end,
+yardBlock1:a.yardBlock,pow1:a.pow,bay1:a.yardBay,moves1:a.moves,
+yardBlock2:b.yardBlock,pow2:b.pow,bay2:b.yardBay,moves2:b.moves,clashMoves,
 status:counted?"Counted Clash":"Potential Clash",
-containerIds:[...a.containerIds,...b.containerIds].join(", "),reason
+clashType:"Standard",
+containerIds:[...a.containerIds,...b.containerIds].join(", "),
+containers:[...(a.containerDetails||[]),...(b.containerDetails||[])],reason
 });
 }
 }
 }
 });
-return{totalLoadMoves,totalClashMoves,totalClashes,totalPotentialClashes,clashPercent:totalLoadMoves>0?totalClashMoves/totalLoadMoves*100:0,details};
+const hrrjkEhrsDetails=calculateHRRJKEHRSClashes(hrrjkEhrsMoves);
+hrrjkEhrsDetails.forEach(detail=>{totalClashMoves+=detail.clashMoves;totalClashes++;details.push(detail);});
+return{totalLoadMoves,totalClashMoves,totalClashes,totalPotentialClashes,clashPercent:totalLoadMoves>0?totalClashMoves/totalLoadMoves*100:0,details,showHrrjkEhrs:terminal==="HRRJK"};
 }
 
 function renderYardClashes(result){
 document.getElementById("yardClashesKPI").innerText=result.clashPercent.toFixed(2)+"%";
-document.getElementById("yardClashesObs").innerText="Counted Moves: "+result.totalClashMoves.toLocaleString()+" | Counted Pairs: "+result.totalClashes.toLocaleString();
-const tbody=document.getElementById("yardClashesTable");
-tbody.innerHTML="";
-result.details.forEach(r=>{
+applyTargetColor("yardClashesKPI","yardClashes",result.clashPercent);
+document.getElementById("yardClashesObs").innerText="Clash Containers: "+result.totalClashMoves.toLocaleString()+" | Eligible Yard Loads: "+result.totalLoadMoves.toLocaleString();
+const allRows=(window.latestKPIExport&&window.latestKPIExport.rows)||[];
+const countedBody=document.getElementById("yardClashesTable"),potentialBody=document.getElementById("yardPotentialClashesTable"),ehrsBody=document.getElementById("hrrjkEhrsClashesTable"),containersBody=document.getElementById("clashesContainersTable");
+countedBody.innerHTML="";potentialBody.innerHTML="";ehrsBody.innerHTML="";containersBody.innerHTML="";
+document.getElementById("hrrjkEhrsClashesSection").classList.toggle("hidden",!result.showHrrjkEhrs);
+function addClashRow(r,tbody){
 const tr=document.createElement("tr");
-tr.innerHTML=`<td>${escapeHtml(r.systemHour)}</td><td>${escapeHtml(r.clashWindow)}</td><td>${escapeHtml(r.yardBlock)}</td><td>${escapeHtml(r.pow1)}</td><td>${escapeHtml(r.bay1)}</td><td>${r.moves1}</td><td>${escapeHtml(r.pow2)}</td><td>${escapeHtml(r.bay2)}</td><td>${r.moves2}</td><td>${r.clashMoves}</td><td class="${r.status==="Counted Clash"?"bad":"warn"}">${escapeHtml(r.status)}</td><td>${escapeHtml(r.containerIds)}</td><td>${escapeHtml(r.reason)}</td>`;
+const systemHour=getDisplaySystemHourLabel(r.hourKey,allRows);
+const clashWindow=getOperationalClashWindow(r.clashStart,r.clashEnd,allRows);
+tr.innerHTML=`<td style="font-weight:700;color:#003b5c">${escapeHtml(systemHour)}</td><td>${escapeHtml(clashWindow)}</td><td>${escapeHtml(r.yardBlock1)}</td><td>${escapeHtml(r.pow1)}</td><td>${escapeHtml(r.bay1)}</td><td>${r.moves1}</td><td>${escapeHtml(r.yardBlock2)}</td><td>${escapeHtml(r.pow2)}</td><td>${escapeHtml(r.bay2)}</td><td>${r.moves2}</td><td class="${r.status==="Counted Clash"?"bad":"warn"}">${escapeHtml(r.status)}</td><td>${escapeHtml(r.reason)}</td>`;
+tbody.appendChild(tr);
+}
+const counted=result.details.filter(r=>r.status==="Counted Clash"&&r.clashType!=="EH/RS"),potential=result.details.filter(r=>r.status==="Potential Clash"),ehrs=result.details.filter(r=>r.clashType==="EH/RS");
+counted.forEach(r=>addClashRow(r,countedBody));
+potential.forEach(r=>addClashRow(r,potentialBody));
+ehrs.forEach(r=>addClashRow(r,ehrsBody));
+const containerRows=new Map();
+result.details.forEach(r=>(r.containers||[]).forEach(c=>{
+const key=[r.status,c.containerId,c.moveTimeSerial,c.pow,c.yardBay].join("|");
+if(!containerRows.has(key))containerRows.set(key,{...c,status:r.status});
+}));
+window.latestClashesContainerRows=[...containerRows.values()].sort((a,b)=>a.moveTime-b.moveTime||clean(a.containerId).localeCompare(clean(b.containerId))).map(c=>({...c,systemHour:getDisplaySystemHourLabel(c.hourKey,allRows)}));
+const search=document.getElementById("clashesSystemHourSearch");if(search)search.value="";
+const options=document.getElementById("clashesSystemHourOptions");if(options){const hours=[...new Set(window.latestClashesContainerRows.map(c=>c.systemHour).filter(Boolean))];options.innerHTML=hours.map(hour=>`<option value="${escapeHtml(hour)}"></option>`).join("");}
+renderClashesContainerRows(window.latestClashesContainerRows);
+}
+
+window.latestClashesContainerRows=[];
+function renderClashesContainerRows(rows){
+const tbody=document.getElementById("clashesContainersTable");tbody.innerHTML="";
+(rows||[]).forEach(c=>{
+const tr=document.createElement("tr");
+tr.innerHTML=`<td>${escapeHtml(formatDateTime(c.moveTime))}</td><td>${escapeHtml(c.containerId)}</td><td>${escapeHtml(c.yardBlockRow||c.yardBay)}</td><td>${escapeHtml(c.pow)}</td><td style="font-weight:700;color:#003b5c">${escapeHtml(c.systemHour)}</td><td class="${c.status==="Counted Clash"?"bad":"warn"}">${escapeHtml(c.status)}</td>`;
 tbody.appendChild(tr);
 });
+const count=document.getElementById("clashesContainerFilterCount");if(count)count.innerText=`${(rows||[]).length.toLocaleString()} container${(rows||[]).length===1?"":"s"} shown`;
+}
+function filterClashesContainersBySystemHour(){
+const input=document.getElementById("clashesSystemHourSearch"),query=clean(input?input.value:"").toLowerCase();
+const status=clean(document.getElementById("clashesStatusFilter")?.value);
+renderClashesContainerRows((window.latestClashesContainerRows||[]).filter(c=>(!query||clean(c.systemHour).toLowerCase().includes(query))&&(!status||c.status===status)));
+}
+function clearClashesSystemHourSearch(){
+const input=document.getElementById("clashesSystemHourSearch");if(input)input.value="";
+const status=document.getElementById("clashesStatusFilter");if(status)status.value="";
+renderClashesContainerRows(window.latestClashesContainerRows||[]);
 }
 
 function toNumber(v){
 const n=Number(clean(v).replace(/'/g,"").replace(/[^0-9.-]/g,""));
 return Number.isNaN(n)?null:n;
 }
+
+/* ===== TWIN YARD FLOW — EGPSD ONLY =====
+   Unchanged from the original single-terminal tool. Its bay/row/tier parsing and
+   south-to-north block-flow rule were confirmed only against EGPSD's physical yard
+   map, so this KPI is not offered for other terminals (see onTerminalChange()). */
 function getMoveKindTwin(row){return upper(getValue(row,["Move Kind"]));}
 function getLengthTwin(row){return clean(getValue(row,["Length"]));}
 function getMoveFromTwin(row){return upper(getValue(row,["Move From"]));}
 function getYardPositionTwin(row){
 const moveKind=getMoveKindTwin(row);
 const moveFrom=getMoveFromTwin(row);
-const category=upper(getValue(row,["Category"]));
 if(moveKind==="DISCHARGE")return"EC";
-if(category!=="RESTOW"&&moveFrom.length>6&&moveFrom.length<9&&moveFrom.substring(0,1)!=="P")return moveFrom;
+if(moveFrom.length>6&&moveFrom.length<9&&moveFrom.substring(0,1)!=="P")return moveFrom;
 return"HEAP AREA";
 }
 function getLoadFromRTGYardTwin(row){
 const moveKind=getMoveKindTwin(row);
 const moveFrom=getMoveFromTwin(row);
 if(moveKind==="DISCHARGE")return"EC";
-if(moveFrom.substring(0,1)==="Z")return"YES";
-if(moveFrom.trim().length===7){
-const thirdChar=moveFrom.substring(2,3);
-const firstChar=moveFrom.substring(0,1);
-if(thirdChar==="M"||firstChar==="3"||firstChar==="P")return"NO";
-return"YES";
-}
-return"NO";
+return isEGPSDRTGBlock(getYardBlockTwin(moveFrom))?"YES":"NO";
 }
 function getYardBlockTwin(yardPosition){
 yardPosition=upper(yardPosition);
 if(yardPosition.length===7||yardPosition.length===8){
-if(yardPosition.substring(0,1)!=="P")return yardPosition.substring(0,3);
+if(yardPosition.substring(0,1)!=="P")return yardPosition.slice(0,-4);
 }
 return"HP";
 }
@@ -1020,8 +1779,6 @@ const moveKind=getMoveKindTwin(row);
 const length=getLengthTwin(row);
 const oog=upper(getValue(row,["Unit Is OOG?","Unit is OOG?"]));
 const yardPosition=getYardPositionTwin(row);
-/* FIX: use .includes("20") instead of ==="20'" so that values like
-   "20", "20FT", "20'" all pass — consistent with Twin Planning filter */
 return moveKind==="LOAD"&&length.includes("20")&&oog!=="TRUE"&&getLoadFromRTGYardTwin(row)==="YES"&&yardPosition!=="HEAP AREA"&&yardPosition!=="EC";
 }
 function parseVesselPosition(pos){
@@ -1044,7 +1801,7 @@ return Math.abs(a.bay-b.bay)===2&&a.row===b.row&&a.tier===b.tier;
 const specialBayOrder=[1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,91,93,95,41,43,45,47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79];
 function isSpecialBlockTwin(block){
 const n=Number(block.substring(0,2));
-return n>=1&&n<=8;
+return isEGPSDRTGBlock(block)&&n>=1&&n<=8;
 }
 function getBayFlowIndex(block,bay){
 if(bay===null)return null;
@@ -1083,23 +1840,9 @@ const block2=getYardBlockTwin(pos2);
 if(block1===block2)return compareSameBlockFlow(pos1,pos2);
 return compareDifferentBlockFlow(pos1,pos2);
 }
-
-/* =============================================================
-   BUG FIX — twinRowKey
-   ---------------------------------------------------------------
-   BEFORE (broken):
-     Groups by Queue + Move Time.
-     Twin containers with different Move Times land in different
-     groups and the inner j-loop never compares them → 0 twins found.
-
-   AFTER (fixed):
-     Groups only by Queue so all containers in the same queue
-     are visible to each other and twins can be correctly paired.
-   ============================================================= */
 function twinRowKey(row){
-  return clean(getValue(row,["Queue"]));
+return clean(getValue(row,["Queue"]));
 }
-
 function findTwins(rows){
 const groups={};
 rows.forEach(row=>{
@@ -1161,12 +1904,13 @@ return{totalTwins:twins.length,respecting,notRespecting,adherence:twins.length?r
 }
 function renderTwinFlow(result){
 document.getElementById("twinFlowKPI").innerText=result.adherence.toFixed(2)+"%";
+applyTargetColor("twinFlowKPI","twinFlow",result.adherence);
 document.getElementById("twinFlowObs").innerText="Total Twins: "+result.totalTwins.toLocaleString()+" | Not Respecting: "+result.notRespecting.toLocaleString();
 function fillRows(tbody,rows){
 tbody.innerHTML="";
 rows.forEach(r=>{
 const tr=document.createElement("tr");
-tr.innerHTML=`<td class="${r.status==="Respected"?"good":"bad"}">${escapeHtml(r.status)}</td><td>${escapeHtml(r.queue)}</td><td>${escapeHtml(r.masterSeq)}</td><td>${escapeHtml(r.masterEquipment)}</td><td>${escapeHtml(r.masterYard)}</td><td>${escapeHtml(r.masterVessel)}</td><td>${escapeHtml(r.masterType)}</td><td>${escapeHtml(r.mirrorSeq)}</td><td>${escapeHtml(r.mirrorEquipment)}</td><td>${escapeHtml(r.mirrorYard)}</td><td>${escapeHtml(r.mirrorVessel)}</td><td>${escapeHtml(r.mirrorType)}</td><td>${escapeHtml(r.reason)}</td>`;
+tr.innerHTML=`<td class="${r.status==="Respected"?"good":"bad"}">${escapeHtml(r.status)}</td><td>${escapeHtml(r.queue)}</td><td>${escapeHtml(r.masterSeq)}</td><td>${escapeHtml(r.masterEquipment)}</td><td>${escapeHtml(r.masterYard)}</td><td>${escapeHtml(r.masterType)}</td><td>${escapeHtml(r.mirrorSeq)}</td><td>${escapeHtml(r.mirrorEquipment)}</td><td>${escapeHtml(r.mirrorYard)}</td><td>${escapeHtml(r.mirrorType)}</td>`;
 tbody.appendChild(tr);
 });
 }
@@ -1174,131 +1918,253 @@ fillRows(document.getElementById("twinFlowBadTable"),result.badDetails);
 fillRows(document.getElementById("twinFlowAllTable"),result.allDetails);
 }
 
-function renderGenericTable(table,rows){
+function renderGenericTable(table,rows,cellClass){
 if(!rows||!rows.length){table.innerHTML="<tbody><tr><td>No data</td></tr></tbody>";return;}
 const cols=Object.keys(rows[0]);
-table.innerHTML=`<thead><tr>${cols.map(c=>`<th>${escapeHtml(c)}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td>${escapeHtml(r[c])}</td>`).join("")}</tr>`).join("")}</tbody>`;
+table.innerHTML=`<thead><tr>${cols.map(c=>`<th>${escapeHtml(c)}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td class="${escapeHtml(cellClass?cellClass(c,r[c],r):"")}">${escapeHtml(r[c])}</td>`).join("")}</tr>`).join("")}</tbody>`;
 }
 
-/* ===== TWIN PLANNING ===== */
-function calculateEGPSDTwinPlanning(rows){
+/* ===== TWIN PLANNING ===== (algorithm unchanged; block/bay compare now uses
+   row._yp.yardBlock / row._yp.yardBay, whose length varies by terminal — the bay
+   number is always the trailing 2 digits of yardBay, so this generalizes cleanly) */
+function getTwinYardRow(ypRow){
+const yardBay=clean(ypRow._yp.yardBay),blockRow=clean(ypRow._yp.yardBlockRow);
+if(!yardBay||yardBay==="HP"||!blockRow.startsWith(yardBay))return null;
+const rowPart=blockRow.slice(yardBay.length);
+return rowPart||null;
+}
+
+/* =====================================================================================
+   TWIN PLANNING — confirmed final rule (verified against real EGPSD data: 514 total
+   eligible 20ft yard-load units -> 456 eligible-for-twin containers -> 228 opportunity
+   pairs, matching the reference pivot table exactly).
+
+   OPPORTUNITIES: pure yard-bay parity. Group eligible containers by exact Yard Bay
+   (block+bay, e.g. "07B17"). Within each bay group, floor the count down to the nearest
+   even number (an odd container out can't pair). Sum across all bay groups, divide by 2
+   for pairs. This is independent of the matching pass below -- it's a ceiling, not a
+   set of specific candidate pairs.
+
+   PLANNED: an actual matched pair. Two containers qualify if EITHER they share the
+   exact same Yard Bay, OR their bay number differs by exactly 2 within the same block
+   (e.g. 01B13 & 01B15) -- AND they share the same yard Row AND same yard Tier AND their
+   weight difference stays within the terminal-specific limit. No vessel-side stow check: a truck can also
+   stage/position a yard twin pick without a confirmed adjacent vessel bay.
+   ===================================================================================== */
+function calculateTwinPlanning(rows,terminal){
+const twinWeightLimitKg=(terminal==="OMSLL"||terminal==="EGPSD")?12000:15000;
 const eligible=rows.filter(row=>{
 const len=normalize(row["Length"]);
 const oog=boolVal(getValue(row,["Unit Is OOG?","Unit is OOG?"]));
-return normalize(row["Move Kind"])==="Load"&&len.includes("20")&&!oog&&isValidYardPositionEGPSD(row);
+return normalize(row["Move Kind"])==="Load"&&len.includes("20")&&!oog&&row._yp.isValidYard&&row._yp.yardBlock!=="HP"&&row._yp.yardBay!=="HP";
 });
+
+const bayGroups={};
+eligible.forEach(row=>{
+const bay=clean(row._yp.yardBay);
+bayGroups[bay]=(bayGroups[bay]||0)+1;
+});
+let eligibleContainers=0;
+Object.values(bayGroups).forEach(count=>{eligibleContainers+=count-(count%2);});
+const opportunityPairs=Math.floor(eligibleContainers/2);
+
 const candidates=[];
 for(let i=0;i<eligible.length;i++){
 for(let j=i+1;j<eligible.length;j++){
-const mf1=clean(getValue(eligible[i],["Move From"])).toUpperCase().substring(0,5);
-const mf2=clean(getValue(eligible[j],["Move From"])).toUpperCase().substring(0,5);
-if(mf1.substring(0,3)!==mf2.substring(0,3))continue;
-const diff=Math.abs(parseInt(mf1.substring(3,5),10)-parseInt(mf2.substring(3,5),10));
+// Opportunities remain yard-based. Queue is required only for an actually Planned Twin.
+const queue1=upper(getValue(eligible[i],["Queue"]));
+const queue2=upper(getValue(eligible[j],["Queue"]));
+if(!queue1||queue1!==queue2)continue;
+const b1=eligible[i]._yp.yardBlock,b2=eligible[j]._yp.yardBlock;
+if(b1!==b2)continue;
+const bay1=clean(eligible[i]._yp.yardBay),bay2=clean(eligible[j]._yp.yardBay);
+const n1=parseInt(getBayNo(bay1),10),n2=parseInt(getBayNo(bay2),10);
+if(Number.isNaN(n1)||Number.isNaN(n2))continue;
+const diff=Math.abs(n1-n2);
 if(diff!==0&&diff!==2)continue;
+if(diff===2){
+// Adjacent-bay case (e.g. 01B13 & 01B15): also requires same yard Row and same yard Tier.
+const row1=getTwinYardRow(eligible[i]),row2=getTwinYardRow(eligible[j]);
+if(row1===null||row2===null||row1!==row2)continue;
+const tier1=eligible[i]._yp.yardTier,tier2=eligible[j]._yp.yardTier;
+if(tier1===null||tier2===null||tier1!==tier2)continue;
+}
+// diff===0 (exact same Yard Bay) needs no Row/Tier check -- weight is the only gate.
 const w1=getNumber(getValue(eligible[i],["Unit Weight (kg)"]));
 const w2=getNumber(getValue(eligible[j],["Unit Weight (kg)"]));
-if(w1>0&&w2>0&&Math.abs(w1-w2)>12)continue;
-const p1=parseVesselPosition(clean(getValue(eligible[i],["Move To","Planned Position"])));
-const p2=parseVesselPosition(clean(getValue(eligible[j],["Move To","Planned Position"])));
-const planned=p1&&p2&&normalize(eligible[i]["Queue"])===normalize(eligible[j]["Queue"])&&Math.abs(p1.bay-p2.bay)===2&&p1.row===p2.row&&p1.tier===p2.tier;
+if(w1>0&&w2>0&&Math.abs(w1-w2)>twinWeightLimitKg)continue;
 const seqDiff=Math.abs((Number(eligible[i]["Sequence"])||0)-(Number(eligible[j]["Sequence"])||0));
-candidates.push({i,j,planned:!!planned,seqDiff});
+candidates.push({i,j,seqDiff});
 }
 }
-candidates.sort((a,b)=>a.planned!==b.planned?(a.planned?-1:1):a.seqDiff-b.seqDiff);
+candidates.sort((a,b)=>a.seqDiff-b.seqDiff);
 const used=new Set();const pairs=[];
 for(const c of candidates){
 if(used.has(c.i)||used.has(c.j))continue;
 used.add(c.i);used.add(c.j);
-pairs.push({row1:eligible[c.i],row2:eligible[c.j],planned:c.planned});
+pairs.push({row1:eligible[c.i],row2:eligible[c.j],planned:true});
 }
-const opportunityPairs=pairs.length;const plannedPairs=pairs.filter(p=>p.planned).length;
-return{opportunityPairs,plannedPairs,twinPct:opportunityPairs>0?plannedPairs/opportunityPairs*100:0,details:pairs};
+const plannedPairs=pairs.length;
+const missedPairsNeeded=Math.max(0,opportunityPairs-plannedPairs),missedDetails=[],displayUsed=new Set();
+const remainingByBay={};
+eligible.forEach((row,index)=>{if(used.has(index))return;const bay=clean(row._yp.yardBay);if(!remainingByBay[bay])remainingByBay[bay]=[];remainingByBay[bay].push(index);});
+Object.values(remainingByBay).forEach(indexes=>{
+indexes.sort((a,b)=>(Number(eligible[a]["Sequence"])||0)-(Number(eligible[b]["Sequence"])||0));
+for(let i=0;i+1<indexes.length&&missedDetails.length<missedPairsNeeded;i+=2){const a=indexes[i],b=indexes[i+1];displayUsed.add(a);displayUsed.add(b);missedDetails.push({row1:eligible[a],row2:eligible[b],planned:false});}
+});
+const leftovers=eligible.map((row,index)=>({row,index})).filter(x=>!used.has(x.index)&&!displayUsed.has(x.index)).sort((a,b)=>clean(a.row._yp.yardBay).localeCompare(clean(b.row._yp.yardBay))||(Number(a.row["Sequence"])||0)-(Number(b.row["Sequence"])||0));
+for(let i=0;i+1<leftovers.length&&missedDetails.length<missedPairsNeeded;i+=2)missedDetails.push({row1:leftovers[i].row,row2:leftovers[i+1].row,planned:false});
+return{opportunityPairs,plannedPairs,twinPct:opportunityPairs>0?plannedPairs/opportunityPairs*100:0,details:pairs,missedDetails};
 }
 function renderTwin(r){
 document.getElementById("twinKPI").innerText=r.twinPct.toFixed(2)+"%";
+applyTargetColor("twinKPI","twin",r.twinPct);
 document.getElementById("twinObs").innerText=`Opportunities: ${r.opportunityPairs} Pairs | Planned: ${r.plannedPairs} Pairs`;
 const tbody=document.getElementById("twinTable");tbody.innerHTML="";
-const planned=r.details.filter(p=>p.planned);const missed=r.details.filter(p=>!p.planned);
-function addSec(title,items,cls){
-if(!items.length)return;
-const sep=document.createElement("tr");sep.innerHTML=`<td colspan="11" class="twins-separator">${title}</td>`;tbody.appendChild(sep);
+function addSection(title,items,status,cls){
+const sep=document.createElement("tr");sep.innerHTML=`<td colspan="11" class="twins-separator">${escapeHtml(title)}</td>`;tbody.appendChild(sep);
+if(items.length===0){const empty=document.createElement("tr");empty.innerHTML=`<td colspan="11">No ${escapeHtml(title.toLowerCase())}</td>`;tbody.appendChild(empty);return;}
 items.forEach(p=>{
 const tr=document.createElement("tr");
-const bay1=clean(getValue(p.row1,["Move From"])).toUpperCase().substring(0,5);
-const bay2=clean(getValue(p.row2,["Move From"])).toUpperCase().substring(0,5);
-tr.innerHTML=`<td class="${cls}">${p.planned?"Planned Twin":"Missed Twin"}</td><td>${escapeHtml(getContainer(p.row1))}</td><td>${escapeHtml(bay1)}</td><td>${escapeHtml(clean(getValue(p.row1,["Move To","Planned Position"])))}</td><td>${escapeHtml(p.row1["Queue"])}</td><td>${escapeHtml(p.row1["Sequence"])}</td><td>${escapeHtml(getContainer(p.row2))}</td><td>${escapeHtml(bay2)}</td><td>${escapeHtml(clean(getValue(p.row2,["Move To","Planned Position"])))}</td><td>${escapeHtml(p.row2["Queue"])}</td><td>${escapeHtml(p.row2["Sequence"])}</td>`;
+const bay1=p.row1._yp.yardBay;
+const bay2=p.row2._yp.yardBay;
+tr.innerHTML=`<td class="${cls}">${escapeHtml(status)}</td><td>${escapeHtml(getContainer(p.row1))}</td><td>${escapeHtml(bay1)}</td><td>${escapeHtml(clean(getValue(p.row1,["Move To","Planned Position"])))}</td><td>${escapeHtml(p.row1["Queue"])}</td><td>${escapeHtml(p.row1["Sequence"])}</td><td>${escapeHtml(getContainer(p.row2))}</td><td>${escapeHtml(bay2)}</td><td>${escapeHtml(clean(getValue(p.row2,["Move To","Planned Position"])))}</td><td>${escapeHtml(p.row2["Queue"])}</td><td>${escapeHtml(p.row2["Sequence"])}</td>`;
 tbody.appendChild(tr);
 });
 }
-addSec("PLANNED TWINS",planned,"good");
-addSec("MISSED TWINS",missed,"bad");
+addSection("PLANNED TWINS",r.details||[],"Planned Twin","good");
+addSection("MISSED TWINS",r.missedDetails||[],"Missed Twin","bad");
 }
 
-/* ===== ALTERNATION ===== */
+/* =====================================================================================
+   ALTERNATION — ratio-window opportunity model (confirmed reference concept)
+   ---------------------------------------------------------------------------------------
+   Per confirmed direction: this replaces the earlier neighbor/block-distance model.
+   Opportunity detection and the alternation test both use a forward-looking RATIO
+   WINDOW, not a bay-distance threshold:
+
+   - For each eligible row, look ahead up to (ratio-1) steps within its own
+     Vessel+Queue+Length-family group (40ft: step 1,2,...; 20ft: step*2, i.e. 2,4,...
+     to skip over the interleaved pair partner).
+   - If NO row exists in that window at all -> NOT an opportunity (excluded from both
+     numerator and denominator).
+   - If at least one comparable exists -> IS an opportunity. Alternated = TRUE only if
+     NONE of the comparables share the exact same yard position; if ANY comparable
+     matches exactly, it's flagged NOT alternated (matching first-match-wins semantics).
+   - Special cases: a single-row group is always 1 opportunity / 1 alternated; a 20ft
+     group of exactly 2 rows is always 2 opportunities / 2 alternated (no real window
+     comparison is possible with only one pair).
+
+   The "yard position" compared is this tool's own per-terminal parsed field
+   (row._yp.yardBay) — the yard-parsing/terminal logic itself is untouched; only the
+   opportunity/alternation mechanics around it changed.
+   ===================================================================================== */
 function normalizeAltLength(len){len=normalize(len);if(len==="45'")return"40'";return len;}
-function checkAlt40(values,index,ratio){
-const current=values[index];let compared=[];
-for(let step=1;step<ratio;step++){const next=values[index+step];if(next===undefined)continue;compared.push(next);if(current===next)return{alternated:false,compared};}
-return{alternated:true,compared};
+
+function getAlternationFreightClass(row){
+const freight=upper(getValue(row,["Freight Kind","FreightKind","Full/Empty","Full Empty","F/E","Freight Status"]));
+return freight==="E"||freight==="MTY"||freight==="EMPTY"||freight.includes("EMPTY")?"Empty":"Full";
 }
-function checkAlt20(values,index,ratio){
-const current=values[index];let compared=[];
-for(let step=1;step<ratio;step++){const next=values[index+(step*2)];if(next===undefined)continue;compared.push(next);if(current===next)return{alternated:false,compared};}
-return{alternated:true,compared};
+
+function checkAlternationWindow(values,index,ratio,is20){
+const current=values[index];
+const compared=[];
+for(let step=1;step<ratio;step++){
+const compIndex=is20?index+(step*2):index+step;
+if(compIndex<0||compIndex>=values.length)continue;
+compared.push(values[compIndex]);
 }
-function calcGroupAlt(rows,ratio,is20){
+if(compared.length===0)return{isOpportunity:true,isAlternated:true,compared:[]};
+const allDifferent=compared.every(v=>v!==current);
+return{isOpportunity:true,isAlternated:allDifferent,compared};
+}
+
+function evaluateAlternationForGroup(rows,ratio,is20){
 rows.sort((a,b)=>a._Seq-b._Seq);
-if(rows.length===1){rows[0]._ComparedWith="Single container queue";rows[0]._Alternated=true;return 1;}
-if(is20&&rows.length===2){rows.forEach(r=>{r._ComparedWith="20ft queue with 2 containers";r._Alternated=true;});return 2;}
-const yardRows=rows.map(r=>r._YardBay);let count=0;
-rows.forEach((row,index)=>{
-const result=is20?checkAlt20(yardRows,index,ratio):checkAlt40(yardRows,index,ratio);
-row._ComparedWith=result.compared.join(" / ");
-row._Alternated=result.compared.length>0&&result.alternated;
-if(row._Alternated)count++;
-});
-return count;
+if(rows.length===1){
+rows[0]._IsOpportunity=true;rows[0]._Alternated=true;rows[0]._ComparedWith="Single container queue";
+return;
 }
-function calculateEGPSDAlternation(rows,ratio20,ratio40){
+if(is20&&rows.length===2){
+rows.forEach(r=>{r._IsOpportunity=true;r._Alternated=true;r._ComparedWith="20ft queue with 2 containers";});
+return;
+}
+const positions=rows.map(r=>r._yp.yardBay);
+rows.forEach((row,index)=>{
+const result=checkAlternationWindow(positions,index,ratio,is20);
+row._IsOpportunity=result.isOpportunity;
+row._Alternated=result.isAlternated;
+row._ComparedWith=result.compared.length?result.compared.join(" / "):"No comparable in ratio window";
+});
+}
+
+function calculateAlternation(rows,ratio20,ratio40,terminal){
+// Current HRRJK rule: Alternation is applicable only to 20ft containers
+// (both Full and Empty). Other terminals retain both 20ft and 40ft families.
+const allow40=terminal!=="HRRJK";
+// The denominator is a yard inventory view, independent of queue sequencing.
+// Full/Empty and 20/40 are counted separately, then summed for the KPI opportunity pool.
+const opportunityBreakdown={full20:0,empty20:0,full40:0,empty40:0};
+rows.forEach(row=>{
+if(normalize(row["Move Kind"])!=="Load")return;
+if(!row._yp.isValidYard||row._yp.yardBay==="HP")return;
+if(boolVal(getValue(row,["Unit Is OOG?","Unit is OOG?"])))return;
+const len=normalizeAltLength(row["Length"]);
+const family=len.includes("20")?"20":(len.includes("40")?"40":"");
+if(!family||(!allow40&&family==="40"))return;
+const freight=getAlternationFreightClass(row).toLowerCase();
+opportunityBreakdown[freight+family]++;
+});
 const prepared=[];
 rows.forEach(row=>{
 if(normalize(row["Move Kind"])!=="Load")return;
-const validYard=isValidYardPositionEGPSD(row);
-const mf=clean(getValue(row,["Move From"])).toUpperCase();
-const yardBay=validYard?mf.substring(0,5):"HP";
+if(!row._yp.isValidYard)return; // no yard position data -> cannot be spatially compared at all
+const oog=boolVal(getValue(row,["Unit Is OOG?","Unit is OOG?"]));
+if(oog)return;
 const seq=Number(clean(row["Sequence"]));
+if(isNaN(seq))return;
 const len=normalizeAltLength(row["Length"]);
+if(!(len.includes("20")||len.includes("40")))return;
+if(!allow40&&len.includes("40"))return;
 const vbdl=normalize(row["Queue"]).substring(0,3)+" "+len;
-prepared.push({...row,_YardPosition:mf,_YardBay:yardBay,_LoadFromYard:validYard?"Yes":"No",_Seq:seq,_Length:len,_VBDL:vbdl,_Alternated:false,_ComparedWith:""});
+prepared.push({...row,_YardPosition:row._yp.yardPosition,_YardBlock:row._yp.yardBlock,_YardBay:row._yp.yardBay,_Seq:seq,_Length:len,_VBDL:vbdl,_Alternated:false,_IsOpportunity:false,_ComparedWith:""});
 });
-const validRows=prepared.filter(r=>r._LoadFromYard==="Yes"&&!isNaN(r._Seq)&&(r._Length.includes("20")||r._Length.includes("40")));
 const groups={};
-validRows.forEach(row=>{
+prepared.forEach(row=>{
 const key=clean(row["Carrier"])+"|"+clean(row["Carrier Name"])+"|"+row._VBDL.trim();
 if(!groups[key])groups[key]={vessel:clean(row["Carrier"]),vesselName:clean(row["Carrier Name"]),queue:row._VBDL.trim(),length:row._Length,rows:[]};
 groups[key].rows.push(row);
 });
 let totalAlt40=0,totalAlt20=0,queueRows=[];
 Object.values(groups).forEach(g=>{
-const is40=g.length.includes("40");const is20=g.length.includes("20");const ratio=is40?ratio40:ratio20;
-const altCount=calcGroupAlt(g.rows,ratio,is20);
-if(is40)totalAlt40+=altCount;if(is20)totalAlt20+=altCount;
-queueRows.push({vessel:g.vessel,vesselName:g.vesselName,queue:g.queue,length:g.length,ratio,moves:g.rows.length,altCount,pct:g.rows.length?altCount/g.rows.length:0});
+const is40=g.length.includes("40");const is20=g.length.includes("20");
+const ratio=is40?ratio40:ratio20;
+evaluateAlternationForGroup(g.rows,ratio,is20);
+const altCount=g.rows.filter(r=>r._Alternated).length;
+const oppCount=g.rows.filter(r=>r._IsOpportunity).length;
+if(is40)totalAlt40+=altCount;
+if(is20)totalAlt20+=altCount;
+queueRows.push({vessel:g.vessel,vesselName:g.vesselName,queue:g.queue,length:g.length,ratio,moves:g.rows.length,opportunities:oppCount,altCount,pct:oppCount?altCount/oppCount:0});
 });
-const loadFromYard=validRows.length,totalAlt=totalAlt40+totalAlt20;
-validRows.sort((a,b)=>{const qa=a._VBDL.trim(),qb=b._VBDL.trim();if(qa!==qb)return qa.localeCompare(qb);return a._Seq-b._Seq;});
-return{loadFromYard,totalAlt,totalAlt40,totalAlt20,alternationPct:loadFromYard?totalAlt/loadFromYard*100:0,queueRows,detailRows:validRows};
+const totalOpp20=opportunityBreakdown.full20+opportunityBreakdown.empty20;
+const totalOpp40=opportunityBreakdown.full40+opportunityBreakdown.empty40;
+const totalOpportunities=totalOpp40+totalOpp20,totalAlt=totalAlt40+totalAlt20;
+prepared.sort((a,b)=>{const qa=a._VBDL.trim(),qb=b._VBDL.trim();if(qa!==qb)return qa.localeCompare(qb);return a._Seq-b._Seq;});
+return{totalOpportunities,totalOpp40,totalOpp20,totalAlt,totalAlt40,totalAlt20,opportunityBreakdown,alternationPct:totalOpportunities?totalAlt/totalOpportunities*100:0,queueRows,detailRows:prepared};
 }
 function renderAlternation(r){
 document.getElementById("alternationKPI").innerText=r.alternationPct.toFixed(2)+"%";
-document.getElementById("alternationObs").innerText="Load from Yard: "+r.loadFromYard.toLocaleString()+" | AltCount: "+r.totalAlt.toLocaleString()+" | 40': "+r.totalAlt40.toLocaleString()+" | 20': "+r.totalAlt20.toLocaleString();
+applyTargetColor("alternationKPI","alternation",r.alternationPct);
+const terminal=document.getElementById("terminal").value;
+const opportunityLabel=terminal==="HRRJK"?"Yard Opportunities (20ft): ":"Yard Opportunities: ";
+document.getElementById("alternationObs").innerText=opportunityLabel+r.totalOpportunities.toLocaleString()+" | Alternation Count: "+r.totalAlt.toLocaleString();
 window.latestAltRows=r.detailRows||[];
 document.getElementById("alternationQueueSearch").value="";
 const qBody=document.getElementById("alternationQueueTable");qBody.innerHTML="";
 [...r.queueRows].sort((a,b)=>a.pct-b.pct).forEach(row=>{
 const pct=row.pct*100;const tr=document.createElement("tr");
-tr.innerHTML=`<td>${escapeHtml(row.vessel)}</td><td>${escapeHtml(row.vesselName)}</td><td>${escapeHtml(row.queue)}</td><td>${escapeHtml(row.length)}</td><td>${row.ratio}</td><td>${row.moves}</td><td>${row.altCount}</td><td>${pct.toFixed(2)}%</td>`;
+const targetClass=getTargetClass("alternation",pct);
+tr.innerHTML=`<td>${escapeHtml(row.vessel)}</td><td>${escapeHtml(row.vesselName)}</td><td>${escapeHtml(row.queue)}</td><td>${escapeHtml(row.length)}</td><td>${row.ratio}</td><td>${row.moves}</td><td>${row.opportunities}</td><td>${row.altCount}</td><td class="${targetClass}">${pct.toFixed(2)}%</td>`;
 qBody.appendChild(tr);
 });
 renderAltDetails(window.latestAltRows);
@@ -1307,7 +2173,7 @@ function renderAltDetails(rows){
 const tbody=document.getElementById("alternationDetailTable");tbody.innerHTML="";
 rows.forEach(r=>{
 const tr=document.createElement("tr");
-tr.innerHTML=`<td>${escapeHtml(r["Carrier"])}</td><td>${escapeHtml(r._VBDL)}</td><td>${escapeHtml(r["Sequence"])}</td><td>${escapeHtml(r._YardPosition)}</td><td>${escapeHtml(r._YardBay)}</td><td>${escapeHtml(r._Length)}</td><td>${escapeHtml(r._ComparedWith)}</td><td class="${r._Alternated?"good":"bad"}">${r._Alternated?"Yes":"No"}</td>`;
+tr.innerHTML=`<td>${escapeHtml(r["Carrier"])}</td><td>${escapeHtml(r._VBDL)}</td><td>${escapeHtml(r["Sequence"])}</td><td>${escapeHtml(r._YardPosition)}</td><td>${escapeHtml(r._YardBlock)}</td><td>${escapeHtml(r._YardBay)}</td><td>${escapeHtml(r._Length)}</td><td class="${r._IsOpportunity?"good":"warn"}">${r._IsOpportunity?"Yes":"No"}</td><td>${escapeHtml(r._ComparedWith)}</td><td class="${r._Alternated?"good":"bad"}">${r._Alternated?"Yes":"No"}</td>`;
 tbody.appendChild(tr);
 });
 }
@@ -1322,7 +2188,8 @@ function getExportFileName(ext){
 const rows=window.latestRTGRows||[];
 const carrier=normalize(rows[0]?.["Carrier"]||"Vessel");
 const carrierName=normalize(rows[0]?.["Carrier Name"]||"RTG");
-return(carrier+" - "+carrierName+" RTG KPIs."+ext).replace(/[\\/:*?"<>|]/g,"-");
+const terminal=document.getElementById("terminal").value;
+return(terminal+" - "+carrier+" - "+carrierName+" RTG KPIs."+ext).replace(/[\\/:*?"<>|]/g,"-");
 }
 async function exportKPIReport(){
 const data=window.latestKPIExport;if(!data){alert("Please calculate KPIs first.");return;}
@@ -1356,14 +2223,15 @@ async function exportDetailPDF(cardId,kpiLabel){
 const rows=window.latestRTGRows||[];
 const carrier=normalize(rows[0]?.["Carrier"]||"Vessel");
 const carrierName=normalize(rows[0]?.["Carrier Name"]||"RTG");
-const safeName=(carrier+" - "+carrierName+" - "+kpiLabel+" Details.pdf").replace(/[\\/:*?"<>|]/g,"-");
+const terminal=document.getElementById("terminal").value;
+const safeName=(terminal+" - "+carrier+" - "+carrierName+" - "+kpiLabel+" Details.pdf").replace(/[\\/:*?"<>|]/g,"-");
 const card=document.getElementById(cardId);if(!card){alert("Detail card not found.");return;}
-const clone=card.cloneNode(true);clone.querySelectorAll(".export-btn-detail").forEach(b=>b.style.display="none");
+const clone=card.cloneNode(true);clone.querySelectorAll(".export-detail-btn").forEach(b=>b.style.display="none");
 const container=document.createElement("div");
 container.style.cssText="position:fixed;left:-12000px;top:0;background:#fff;padding:28px 24px;box-sizing:border-box;width:1200px;font-family:Segoe UI,Arial,sans-serif;color:#0f172a;";
 const hdr=document.createElement("div");
 hdr.style.cssText="background:linear-gradient(135deg,#002f4b,#006b8f);color:white;padding:18px 22px;border-radius:14px;margin-bottom:18px;";
-hdr.innerHTML="<div style='font-size:18px;font-weight:800;margin-bottom:4px;'>SPC-RTG KPI Calculator</div><div style='font-size:13px;opacity:.8;'>"+carrier+" | "+carrierName+" | "+kpiLabel+" Details</div>";
+hdr.innerHTML="<div style='font-size:18px;font-weight:800;margin-bottom:4px;'>SPC-RTG Planning KPI Calculator</div><div style='font-size:13px;opacity:.8;'>"+terminal+" | "+carrier+" | "+carrierName+" | "+kpiLabel+" Details</div>";
 const ftr=document.createElement("div");
 ftr.style.cssText="margin-top:18px;padding-top:12px;border-top:1px solid #dbe4ea;font-size:11px;font-weight:700;color:#64748b;text-align:center;";
 ftr.textContent="SPC Tangier - HBO Confidential & Proprietary © 2026";
@@ -1389,6 +2257,48 @@ pdf.save(safeName);
 }catch(err){alert("Detail PDF export failed.");console.error(err);}
 finally{container.remove();}
 }
+
+function exportDetailExcel(tableId,kpiLabel){
+const data=window.latestKPIExport;
+if(!data){alert("Please calculate KPIs first.");return;}
+const rows=data.rows||[];
+const carrier=normalize(getValue(rows[0]||{},["Carrier","Vessel ID"]))||"Vessel";
+const carrierName=normalize(getValue(rows[0]||{},["Carrier Name","Vessel Name"]))||"Unknown";
+const table=document.getElementById(tableId);
+if(!table){alert("Table not found.");return;}
+// Preserve operational identifiers exactly as displayed. Without raw text mode,
+// Excel interprets codes such as 06E93 as scientific notation (6E+93).
+const ws=XLSX.utils.table_to_sheet(table,{raw:true});
+const wb=XLSX.utils.book_new();
+XLSX.utils.book_append_sheet(wb,ws,kpiLabel.substring(0,31));
+const fileName=(carrier+" - "+carrierName+" - "+kpiLabel+" Details.xlsx").replace(/[\\/:*?"<>|]/g,"-");
+XLSX.writeFile(wb,fileName);
+}
+
+function exportMissedTwinsExcel(){
+const data=window.latestKPIExport;
+if(!data){alert("Please calculate KPIs first.");return;}
+const rows=data.rows||[];
+const missed=(data.twin&&data.twin.missedDetails)||[];
+const headers=["Status","Container 1","Yard Bay 1","Move To 1","Queue 1","Sequence 1","Container 2","Yard Bay 2","Move To 2","Queue 2","Sequence 2"];
+const body=missed.map(p=>[
+"Missed Twin",
+getContainer(p.row1),clean(p.row1._yp&&p.row1._yp.yardBay),clean(getValue(p.row1,["Move To","Planned Position"])),clean(getValue(p.row1,["Queue"])),clean(getValue(p.row1,["Sequence"])),
+getContainer(p.row2),clean(p.row2._yp&&p.row2._yp.yardBay),clean(getValue(p.row2,["Move To","Planned Position"])),clean(getValue(p.row2,["Queue"])),clean(getValue(p.row2,["Sequence"]))
+]);
+const ws=XLSX.utils.aoa_to_sheet([headers,...body]);
+// Explicitly keep every exported operational identifier as text.
+Object.keys(ws).filter(ref=>ref[0]!=="!").forEach(ref=>{if(ws[ref]&&ws[ref].v!==undefined){ws[ref].t="s";ws[ref].v=String(ws[ref].v);}});
+const wb=XLSX.utils.book_new();
+XLSX.utils.book_append_sheet(wb,ws,"Missed Twins");
+const terminal=data.terminal||document.getElementById("terminal").value;
+const carrier=normalize(getValue(rows[0]||{},["Carrier","Vessel ID"]))||"Vessel";
+const carrierName=normalize(getValue(rows[0]||{},["Carrier Name","Vessel Name"]))||"Unknown";
+const fileName=(terminal+" - "+carrier+" - "+carrierName+" - Missed Twins.xlsx").replace(/[\\/:*?"<>|]/g,"-");
+XLSX.writeFile(wb,fileName);
+}
+
+onTerminalChange();
 </script>
 </body>
 </html>
